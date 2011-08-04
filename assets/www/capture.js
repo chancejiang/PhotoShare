@@ -6,20 +6,37 @@ function addImage(imageData) {
     newImg.style.float = "left";
     newImg.style.padding = "1em";
     newImg.src = "data:image/jpeg;base64,"+imageData;
+    newImg.onclick = onImageClick;
     pictures.appendChild(newImg);
+}
+
+function toggleButtons() {
+  var capture = document.getElementById('capturePhoto');
+  var list = document.getElementById('listPhotos');
+  if(capture.disabled && list.disabled) {
+    capture.disabled = '';
+    list.disabled = '';
+  } else {
+    capture.disabled = 'disabled';
+    list.disabled = 'disabled';
+  }
 }
 
 function setMessage(message) {
   document.getElementById('message').innerHTML = message;
 }
 
-function onStartSuccess(message) {
-  alert("Success: "+message);
+function setSyncPoint(syncpoint) {
+  document.getElementById('syncpoint').innerHTML = "PhotoShare is in sync with: " + syncpoint;
+}
+
+function onStartSuccess(startObj) {
+  alert("Success: "+startObj.message);
   CouchDbPlugin.started = true;
   // enabling buttons
-  document.getElementById('capturePhoto').disabled = '';
-  document.getElementById('listPhotos').disabled = '';
+  toggleButtons();
   setMessage('');
+  setSyncPoint(startObj.syncpoint);
 }
 
 function onStartFailure(error) {
@@ -30,6 +47,7 @@ document.addEventListener("deviceready", function() {
   console.log('initialized');
   PhoneGap.UsePolling = true;
   if(CouchDbPlugin.started == false) {
+    setMessage('starting CouchDB');
     CouchDbPlugin.start(onStartSuccess, onStartFailure);
   }
 }, true);
@@ -78,12 +96,33 @@ function onListSuccess(data) {
       CouchDbPlugin.fetch(dbObj.rows[i].id, onFetchSuccess, onFetchFailure);
     }
   }
+  toggleButtons();
 };
 var onListFailure = function(error) {
   alert(error);
+  toggleButtons();
 };
 function listPictures() {
   // resetting the pictures
+  toggleButtons();
   pictures.innerHTML = "";
   CouchDbPlugin.list(onListSuccess, onListFailure);
+}
+
+function onImageClick() {
+  console.log('image clicked !');
+  var overlay = document.getElementById('overlay');
+  var overlayImage = document.getElementById('overlay-image');
+  console.log(this.src);
+  overlayImage.src = this.src;
+  overlayImage.style.width = "100%";
+  console.log(overlayImage.src);
+  overlay.style.display = '';
+  document.addEventListener('backbutton', backKeyDown, true);
+}
+
+function backKeyDown() {
+  var overlay = document.getElementById('overlay');
+  overlay.style.display = 'none';
+  document.removeEventListener('backbutton', backKeyDown, true);
 }

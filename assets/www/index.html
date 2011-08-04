@@ -3,6 +3,9 @@
   <head>
     <title>PhoneGap</title>
     <style type="text/css">
+    #syncpoint {
+      padding: 1em;
+    }
     button {
       height: 42px;
       padding: 0 8px;
@@ -14,10 +17,22 @@
       background: -webkit-gradient(linear, left top, left bottom, from(#cbcfd4), to(#939ba6));
       -webkit-background-clip: padding-box;
     }
+    #overlay {
+      z-index: 5;
+      position: absolute;
+      margin-left: auto;
+      margin-right: auto;
+      top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);
+    }
+    #overlay-image {
+      position: absolute;
+      top:25%;bottom:25%;
+    }
     </style>
   </head>
   <body style="text-align:center;">
     <h1>Welcome to PhotoShare</h1>
+    <div id="syncpoint"></div>
 
     <script type="text/javascript" charset="utf-8" src="phonegap-1.0.0rc3.js"></script>
     <script type="text/javascript" charset="utf-8" src="couchdbplugin.js"></script>
@@ -33,6 +48,9 @@
     <div id="message"></div>
     <h3>Pictures in CouchDB</h3>
     <div id="pictures"></div>
+    <div id="overlay" style="display:none;">
+      <img id="overlay-image" src="http://www.phonegap.com/assets/carousel/dw5_4.jpg" alt="" />
+    </div>
     <script type="text/javascript" charset="utf-8" src="capture.js"></script>
   </body>
 </html>
