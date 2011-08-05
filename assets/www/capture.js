@@ -27,6 +27,7 @@ function setMessage(message) {
 }
 
 function setSyncPoint(syncpoint) {
+  CouchDbPlugin.fullSync(syncpoint);
   document.getElementById('syncpoint').innerHTML = "PhotoShare is in sync with: " + syncpoint;
 }
 

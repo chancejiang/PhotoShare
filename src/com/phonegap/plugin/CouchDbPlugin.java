@@ -51,6 +51,13 @@ public class CouchDbPlugin extends Plugin {
 		else if(action.equals("list")) {
 			result = list();
 		}
+		else if(action.equals("fullSync")) {
+			try {
+				result = fullSync(data.get(0).toString());
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+		}
 		else if(action.equals("fetch")) {
 			try {
 				result = fetch(data.get(0).toString());
@@ -93,7 +100,7 @@ public class CouchDbPlugin extends Plugin {
 		@Override
 		public void couchStarted(String host, int port) {
 			String url = "http://" + host + ":" + Integer.toString(port) + "/";
-			ensureDoc("photoshare", url);
+			ensureDoc("photo-share", url);
 			String syncPoint = getSyncPoint();
 			//success(new PluginResult(Status.OK, "{\"syncpoint\":"+syncPoint+",\"message\":\"CouchDB started!\"}"), callbackId);
 			try {
@@ -159,6 +166,26 @@ public class CouchDbPlugin extends Plugin {
 		} catch (JSONException e) {
 			e.printStackTrace();
 			result = new PluginResult(Status.JSON_EXCEPTION, "Error while listing data: "+e.getMessage());
+		}
+		return result;
+	}
+	
+	private PluginResult fullSync(String remoteUrl) {
+		PluginResult result = null;
+
+		try {
+			// trigger replication with this json
+			String startRep1 = "{\"source\":\""+ remoteUrl +"\", \"target\":\""+ this.dbName +"\", \"create_target\":true, \"continuous\":true}";
+			String startRep2 = "{\"source\":\""+ this.dbName +"\", \"target\":\""+ remoteUrl +"\", \"continuous\":true}";
+			String replicateUrl = this.url + "_replicate";
+
+			AndCouch req = AndCouch.post(replicateUrl, startRep1);
+			req = AndCouch.post(replicateUrl, startRep2);
+
+
+		} catch (JSONException e) {
+			e.printStackTrace();
+			result = new PluginResult(Status.JSON_EXCEPTION, "Error while fetching image: "+e.getMessage());
 		}
 		return result;
 	}

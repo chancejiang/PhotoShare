@@ -21,6 +21,14 @@ var CouchDbPlugin = {
                           []
                          );
    },
+    fullSync: function(remoteUrl, successCallback, failureCallback) {
+     return PhoneGap.exec(successCallback,
+                          failureCallback,
+                          'CouchDbPlugin',
+                          'fullSync',
+                          [remoteUrl]
+                         );
+   },
    fetch: function(id, successCallback, failureCallback) {
      return PhoneGap.exec(successCallback,
                           failureCallback,
