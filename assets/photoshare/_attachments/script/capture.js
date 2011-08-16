@@ -74,7 +74,7 @@ function setupSync() {
 function onCaptureSuccess(imageData) {
   console.log("onCaptureSuccess");
   var onSaveSuccess = function(imageDoc) {
-    addImage(imageDoc.id);
+    // addImage(imageDoc.id);
     setMessage('');
   };
   var onSaveFailure = function(xhr, type) {
