@@ -18,6 +18,25 @@ function addImage(imageId) {
     $('#pictures').prepend(newImg);
 }
 
+function addComment(commentDoc) {
+  $('#comments').prepend('<span>'+commentDoc.comment+'</span><br/>')
+                .prepend('<span class="author">'+commentDoc.author+' wrote:</span> ');
+}
+
+function clearPhotoView() {
+  $('#comments').html('');
+  $('#photoview-image').attr('src', '');
+}
+
+function toggleButton() {
+  var capture = $('#capturePhoto');
+  if(capture.attr('disabled')) {
+    capture.removeAttr('disabled');
+  } else {
+    capture.attr('disabled', true);
+  }
+}
+
 function setMessage(message) {
   $('#message').html(message);
 }
@@ -63,6 +82,7 @@ function onCaptureSuccess(imageData) {
   };
   setMessage('Saving image...');
   var imageDoc = {
+    type: "photo",
     created_at: new Date(),
     _attachments: {
       "original.jpg": {
@@ -123,7 +143,7 @@ function onDBChange(opts) {
 
 function listPictures(data) {
   if (data.results) {
-    for (var i = 0; i < data.results.length; i++){
+    for (var i = 0; i < data.results.length; i++) {
       if(!data.results[i].deleted && data.results[i].id.indexOf('_design/') != 0) {
         addImage(data.results[i].id);
       }
@@ -132,18 +152,53 @@ function listPictures(data) {
 }
 
 function sendComment() {
-  // TODO: save comment in the db
-    $('#comments').prepend('<p>'+$('#comment-area').val()+'</p>');
+    var commentDoc = {
+      "type": "comment",
+      "photo": selectedPictureId,
+      "author": $('#comment-author').val(),
+      "comment": $('#comment-text').val()
+    };
+
+    var onCommentSuccess = function(response) {
+      addComment(commentDoc);
+    };
+
+    var onCommentFailure = function(xhr, type) {
+      alert(type + ' ' + xhr.responseText);
+    };
+
+    CouchDbPlugin.save(commentDoc, onCommentSuccess, onCommentFailure);
 }
 
 function onImageClick() {
+  // FIXME: maybe use a hidden field instead?
   selectedPictureId = this.id;
   $('#photoview-image').attr('src', this.src).css('width', '100%');
   $('#photoview').css("-webkit-transform","translate(0,0)");
-  $('#photoview').show();
-  $('#main').hide();
-  $('#send-comment').click(sendComment);
-  document.addEventListener('backbutton', backKeyDown, true);
+
+  var onFetchSuccess = function(response) {
+    console.log(JSON.stringify(response));
+    for(var i = 0 , j = response.total_rows - response.offset ; i < j ; i++) {
+      addComment(response.rows[i].value);
+    }
+    $('#photoview').show();
+    $('#main').hide();
+    $('#send-comment').click(sendComment);
+    document.addEventListener('backbutton', backKeyDown, true);
+  };
+
+  var onFetchFailure = function(xhr, type) {
+    console.log(type + ' ' + xhr.responseText);
+  }
+
+  $.ajax({
+   type: 'GET',
+   url: '/photoshare/_design/photoshare/_view/photo_and_comments?startkey=["'+selectedPictureId+'",1]',
+   dataType: 'json',
+   contentType: 'application/json',
+   success: onFetchSuccess,
+   error: onFetchFailure
+  });
 }
 
 function backKeyDown() {
@@ -151,6 +206,7 @@ function backKeyDown() {
   $('#send-comment').unbind('click');
   $('#photoview').css("-webkit-transform","translate(100%,0)");
   $('#photoview').hide();
+  clearPhotoView();
   $('#main').show();
 }
 
