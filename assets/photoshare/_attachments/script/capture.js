@@ -112,45 +112,35 @@ function capturePhoto() {
   navigator.camera.getPicture(onCaptureSuccess, onCaptureFailure, { quality: 10 });
 }
 
-
-
-var since = 0;
-function changesCallback(opts) {
-  since = opts.last_seq || since;
-  onDBChange(opts);
-  $.ajax({
-    type: 'GET',
-    url: '/photoshare/_changes?include_docs=true&feed=longpoll&since='+since,
-    dataType: 'json',
-    success: changesCallback,
-    error: function() {
-      setTimeout(function() {
-        console.log("error changes");
-        console.log(opts);
-        changesCallback({last_seq : since});
-      }, 250)
+function connectChanges(dbname, onDBChange) {
+    var since = 0;
+    function changesCallback(opts) {
+      since = opts.last_seq || since;
+      if (opts.results) {onDBChange(opts);}
+      $.ajax({
+        type: 'GET',
+        url: '/'+dbname+'/_changes?include_docs=true&feed=longpoll&since='+since,
+        dataType: 'json',
+        success: changesCallback,
+        error: function() {
+          setTimeout(function() {
+            console.log("error changes");
+            console.log(opts);
+            changesCallback({last_seq : since});
+          }, 250)
+        }
+      });
     }
-  });
-}
+    changesCallback({last_seq : 0});
+};
 
-
-function setupChanges() {
-  changesCallback({last_seq : 0});
-}
-
-function onDBChange(opts) {
-  // append new pictures to the view without disturbing old ones
-  listPictures(opts);
-}
 
 function listPictures(data) {
-  if (data.results) {
     for (var i = 0; i < data.results.length; i++) {
-      if(!data.results[i].deleted && data.results[i].doc.original_id) {
-        addThumbnail(data.results[i].id, data.results[i].doc.original_id);
-      }
+        if(!data.results[i].deleted && data.results[i].doc.original_id) {
+            addThumbnail(data.results[i].id, data.results[i].doc.original_id);
+        }
     }
-  }
 }
 
 function sendComment() {
@@ -251,7 +241,8 @@ function startCamera() {
 
 function start() {
     // setup listing of pictures and auto refresh
-    setupChanges();
+    connectChanges("photoshare", listPictures);
+    // connectChanges("control", controlHandler);
     setupSync();
 }
 
