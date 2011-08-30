@@ -22,6 +22,10 @@
               onclick="window.location.reload();">
         Reload Page
       </button>
+      <button type="button" id="configSync"
+              onclick="configSync();">
+        Configure Sync
+      </button>
       <hr />
       <div id="message"></div>
       <h3>Pictures in Couchbase</h3>
@@ -38,6 +42,19 @@
         <input type="text" id="comment-text" value="Put your comment here..." />
         <button id="send-comment">Send comment!</button>
       </div>
+    </div>
+    <div id="register" style="display:none">
+        <form>
+            <p>Email address to use for sync identity:</p>
+            <label><input type="text" id="email" value="" /></label>
+            <p><input type="submit" value="Continue &rarr;"></p>
+            <p>You will be sent a confirmation message.</p>
+        </form>
+    </div>
+    <div id="waiting" style="display:none">
+        <p>Waiting for your email to confirmed. When prompted by the server,
+            enter code <strong></strong>, and then click here:</p>
+            <p><input type="submit" value="Continue &rarr;"></p>
     </div>
     <script type="text/javascript" charset="utf-8" src="script/capture.js"></script>
   </body>

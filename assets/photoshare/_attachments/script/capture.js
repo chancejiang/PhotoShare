@@ -242,8 +242,8 @@ function startCamera() {
 function start() {
     // setup listing of pictures and auto refresh
     connectChanges("photoshare", listPictures);
-    // connectChanges("control", controlHandler);
     setupSync();
+    setupControl()
 }
 
 var started = false;
@@ -255,3 +255,99 @@ function startApp() {
 
 document.addEventListener("deviceready", startCamera, true);
 $('body').ready(startApp);
+
+function coux(opts, body) {
+    if (typeof opts === 'string') opts = {url:opts};
+    var cb = arguments[arguments.length -1];
+    if (arguments.length == 3) {
+        opts.data = JSON.stringify(body);
+    }
+    opts.url = opts.url || opts.uri;
+    var req = {
+        type: 'GET',
+        dataType: 'json',
+        contentType: 'application/json',
+        success: function(doc) {
+            cb(false, doc)
+        },
+        error: function(e) {
+            cb(e)
+        }
+    };
+    for (var x in opts) {
+        if (opts.hasOwnProperty(x)){
+            req[x] = opts[x];
+        }
+    }
+    $.ajax(req);
+};
+
+var reg, device_code;
+function setupControl(changes) {
+    coux({type : "PUT", uri : "/control"}, function() {
+        coux('/control/_all_docs?include_docs=true&limit=2', function(err, view) {
+            if (!err && view.rows.length == 0) {
+                reg = "needed";
+                // we need to register the device
+            } else if (!err && view.rows.length == 1) {
+                reg = "waiting";
+                device_code = view.rows[0].doc.device_code;
+                // we are in the middle of registering
+            } else {
+                // we are normal
+                // connectChanges("control", controlHandler);
+                console.log(err, view)
+            }
+        });
+    });
+}
+
+function showRegister() {
+    $('#register').show();
+    $('#register').css("-webkit-transform","translate(0,0)");
+    $('#register').find("form").submit(function(e) {
+        e.preventDefault();
+        var email = $(this).find("input").val();
+        coux("/_uuids?count=4", function(err, resp) {
+            var uuids = resp.uuids;
+            device_code = Math.random().toString().substr(2,4)
+            var deviceDoc = {
+                owner : email,
+                type : "device",
+                state : "new",
+                device_code : device_code,
+                oauth_creds : { // we need better entropy
+                  consumer_key: uuids[0],
+                  consumer_secret: uuids[1],
+                  token_secret: uuids[2],
+                  token: uuids[3]
+                }
+            };
+            coux({type : "POST", uri : "/control"}, deviceDoc, function(err, resp) {
+                if (err) {
+                    console.log(err)
+                } else {
+                    $('#register').hide();
+                    showWaiting();
+                }
+            });
+        });
+    });
+};
+
+function showWaiting(args) {
+    $('#waiting').show();
+    $('#waiting').css("-webkit-transform","translate(0,0)");
+    $('#waiting').find("strong").text(device_code);
+}
+
+
+function configSync() {
+    // if we have the user email address
+    if (reg == "waiting") {
+        showWaiting();
+    } else {
+        showRegister();
+    }
+
+}
