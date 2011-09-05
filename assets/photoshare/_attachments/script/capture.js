@@ -253,147 +253,20 @@ function startApp() {
     start();
 };
 
+var CONTROL_DB_URL = "http://couchbase.ic.ht/photoshare-control"
+
 document.addEventListener("deviceready", startCamera, true);
 $('body').ready(startApp);
 
-function coux(opts, body) {
-    if (typeof opts === 'string') opts = {url:opts};
-    var cb = arguments[arguments.length -1];
-    if (arguments.length == 3) {
-        opts.data = JSON.stringify(body);
-    }
-    opts.url = opts.url || opts.uri;
-    if ($.isArray(opts.url)) {
-        opts.url = opt.url.map(function(path) {
-            return encodeURIComponent(path);
-        }).join('/');
-    }
-    var req = {
-        type: 'GET',
-        dataType: 'json',
-        contentType: 'application/json',
-        success: function(doc) {
-            cb(false, doc)
-        },
-        error: function(e) {
-            cb(e)
-        }
-    };
-    for (var x in opts) {
-        if (opts.hasOwnProperty(x)){
-            req[x] = opts[x];
-        }
-    }
-    $.ajax(req);
-};
 
-function e(fun) {
-    return function(err, data) {
-        if (err) {
-            console.log(err)
-        } else {
-            fun && fun(err, data)
-        }
-    };
-};
+// called by app to kick off Couchbase Channels
+var myChannels = Channels({
+    setupEmailForm : setupEmailForm,
+    waitForContinue : waitForContinue,
+    syncControlDB : CONTROL_DB_URL
+});
 
-
-// entry point for device registration and sync / backup config
-function setupControl() {
-    coux({type : "PUT", uri : "/control"}, function() {
-        coux(["control","_local/device"], function(err, doc) {
-            if (!err && doc.device_id) {
-                haveDeviceId(doc.device_id)
-            } else {
-                setDeviceId(haveDeviceId);
-            }
-        });
-    });
-}
-
-function setDeviceId(cb) {
-    coux("/_uuids?count=1", e(function(err, resp) {
-        var uuids = resp.uuids;
-        coux({type : "PUT", uri : ["control","_local/device"]}, {
-            device_id : uuids[0]
-        }, e(function(err, resp) {
-            cb(uuids[0])
-        }));
-    }));
-}
-
-function haveDeviceId(device_id) {
-    coux(['control', device_id], function(err, doc) {
-        if (err) { // no device doc
-            setupEmailForm(e(function(err, email, cb) {
-                // get email address via form
-                makeDeviceDoc(doc.device_id, email, e(function(err, deviceDoc) {
-                    cb()
-                    haveDeviceDoc(deviceDoc)
-                }));
-            }));
-        } else {
-            haveDeviceDoc(doc)
-        }
-    })
-}
-
-function haveDeviceDoc(deviceDoc) {
-    if (deviceDoc.connected) {
-        syncInfo();
-        connectReplication(deviceDoc, e());
-    } else {
-        waitForContinue(deviceDoc, e(function(err, cb) {
-            syncInfo();
-            connectReplication(deviceDoc, e(function(err, resp) {
-                if (!err) {
-                    cb();
-                    deviceDoc.connected = true;
-                    coux({type : "PUT", uri : ["control",deviceDoc._id]}, deviceDoc, e());
-                }
-            }));
-        }));
-    }
-};
-
-function makeDeviceDoc(device_id, cb) {
-    coux("/_uuids?count=4", e(function(err, resp) {
-        var uuids = resp.uuids;
-        var deviceDoc = {
-            _id : device_id,
-            owner : email,
-            type : "device",
-            state : "new",
-            device_code : Math.random().toString().substr(2,4),
-            oauth_creds : { // we need better entropy
-              consumer_key: uuids[0],
-              consumer_secret: uuids[1],
-              token_secret: uuids[2],
-              token: uuids[3]
-            }
-        };
-        coux({type : "PUT", uri : ["control",deviceDoc._id]}, deviceDoc, cb);
-    }));
-}
-
-function connectReplication(deviceDoc, cb) {
-    var syncPoint = {
-        url : "http://couchbase.ic.ht/photoshare-control",
-        auth: {
-            oauth: deviceDoc.oauth_creds
-        }
-    };
-    coux({type : "POST", uri : "/_replicate"}, {
-        source : syncPoint,
-        target : "control"
-    }, e(function() {
-        coux({type : "POST", uri : "/_replicate"}, {
-            target : syncPoint,
-            source : "control"
-        }, cb)
-    }));
-}
-
+// these should be be app pluggable
 function waitForContinue(doc, cb) {
     $('#waiting').find("strong").text(doc.device_code);
     $("#waiting").find("input").click(function() {
@@ -413,14 +286,14 @@ function setupEmailForm(cb) {
     });
 }
 
-function showRegister() {
-    $('#register').show();
-    $('#register').css("-webkit-transform","translate(0,0)");
-};
-
-function showWaiting(args) {
-    $('#waiting').show();
-    $('#waiting').css("-webkit-transform","translate(0,0)");
-}
+// function showRegister() {
+//     $('#register').show();
+//     $('#register').css("-webkit-transform","translate(0,0)");
+// };
+// 
+// function showWaiting(args) {
+//     $('#waiting').show();
+//     $('#waiting').css("-webkit-transform","translate(0,0)");
+// }
 
 
