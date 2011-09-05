@@ -1,5 +1,5 @@
 function(doc) {
-    if (doc.type && doc.state) {
+    if (doc.type == "") {
         emit([doc.type, doc.state], null)
     }
 };
