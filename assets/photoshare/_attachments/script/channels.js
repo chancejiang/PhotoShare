@@ -6,24 +6,26 @@ function e(fun) {
         if (err) {
             console.log(err)
         } else {
-            fun && fun(err, data)
+            fun && fun.apply(null, arguments)
         }
     };
 };
 
 var Channels = function(opts) {
     
-    opts.localControl = opts.localControl || "control";
+    var deviceDb = opts.deviceDb || "control";
 
-    if (!(opts.waitForContinue && opts.setupEmailForm)) {
-        throw("opts.waitForContinue && opts.setupEmailForm are requried")
+    if (!(opts.waitForContinue && opts.getEmail)) {
+        throw("opts.waitForContinue && opts.getEmail are requried")
     }
     
     setupControl();
     // entry point for device registration and sync / backup config
     function setupControl() {
-        coux({type : "PUT", uri : [opts.localControl]}, function() {
-            coux([opts.localControl,"_local/device"], function(err, doc) {
+        console.log("setupControl")
+        
+        coux({type : "PUT", uri : [deviceDb]}, function() {
+            coux([deviceDb,"_local/device"], function(err, doc) {
                 if (!err && doc.device_id) {
                     haveDeviceId(doc.device_id)
                 } else {
@@ -34,9 +36,11 @@ var Channels = function(opts) {
     }
 
     function setDeviceId(cb) {
+        console.log("setDeviceId")
+        
         coux("/_uuids?count=1", e(function(err, resp) {
             var uuids = resp.uuids;
-            coux({type : "PUT", uri : [opts.localControl,"_local/device"]}, {
+            coux({type : "PUT", uri : [deviceDb,"_local/device"]}, {
                 device_id : uuids[0]
             }, e(function(err, resp) {
                 cb(uuids[0])
@@ -45,11 +49,14 @@ var Channels = function(opts) {
     }
 
     function haveDeviceId(device_id) {
-        coux([opts.localControl, device_id], function(err, doc) {
+        console.log("haveDeviceId")
+        
+        coux([deviceDb, device_id], function(err, doc) {
             if (err) { // no device doc
-                opts.setupEmailForm(e(function(err, email, cb) {
+                console.log("getEmail")
+                opts.getEmail(e(function(err, email, cb) {
                     // get email address via form
-                    makeDeviceDoc(doc.device_id, email, e(function(err, deviceDoc) {
+                    makeDeviceDoc(device_id, email, e(function(err, deviceDoc) {
                         cb()
                         haveDeviceDoc(deviceDoc)
                     }));
@@ -61,24 +68,28 @@ var Channels = function(opts) {
     }
 
     function haveDeviceDoc(deviceDoc) {
+        console.log("haveDeviceDoc")
+        
         if (deviceDoc.connected) {
-            syncInfo();
+            // syncInfo();
             connectReplication(deviceDoc, e());
         } else {
-            opts.waitForContinue(deviceDoc, e(function(err, cb) {
-                syncInfo();
+            opts.waitForContinue(deviceDoc, e(function(err, closeContinue) {
+                // syncInfo();
                 connectReplication(deviceDoc, e(function(err, resp) {
                     if (!err) {
-                        cb();
+                        closeContinue();
                         deviceDoc.connected = true;
-                        coux({type : "PUT", uri : [opts.localControl,deviceDoc._id]}, deviceDoc, e());
+                        coux({type : "PUT", uri : [deviceDb,deviceDoc._id]}, deviceDoc, e());
                     }
                 }));
             }));
         }
     };
 
-    function makeDeviceDoc(device_id, cb) {
+    function makeDeviceDoc(device_id, email, cb) {
+        console.log("makeDeviceDoc")
+        
         coux("/_uuids?count=4", e(function(err, resp) {
             var uuids = resp.uuids;
             var deviceDoc = {
@@ -94,26 +105,31 @@ var Channels = function(opts) {
                   token: uuids[3]
                 }
             };
-            coux({type : "PUT", uri : [opts.localControl,deviceDoc._id]}, deviceDoc, cb);
+            coux({type : "PUT", uri : [deviceDb,deviceDoc._id]}, deviceDoc, e(function(err, resp) {
+                deviceDoc._rev = resp.rev;
+                cb(false, deviceDoc);
+            }));
         }));
     }
 
     function connectReplication(deviceDoc, cb) {
+        console.log("connectReplication");
+        
         var syncPoint = {
-            url : opts.syncControlDB,
+            url : opts.cloudDb,
             auth: {
                 oauth: deviceDoc.oauth_creds
             }
         };
         coux({type : "POST", uri : "/_replicate"}, {
             source : syncPoint,
-            target : opts.localControl
+            target : deviceDb
         }, e(function() {
             coux({type : "POST", uri : "/_replicate"}, {
                 target : syncPoint,
-                source : opts.localControl
+                source : deviceDb
             }, cb)
         }));
     }
     
-});
+};

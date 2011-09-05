@@ -242,8 +242,8 @@ function startCamera() {
 function start() {
     // setup listing of pictures and auto refresh
     connectChanges("photoshare", listPictures);
-    setupSync();
-    setupControl()
+    // setupSync();
+    startControl()
 }
 
 var started = false;
@@ -253,22 +253,32 @@ function startApp() {
     start();
 };
 
-var CONTROL_DB_URL = "http://couchbase.ic.ht/photoshare-control"
-
 document.addEventListener("deviceready", startCamera, true);
 $('body').ready(startApp);
 
+function startControl() {
+    // called by app to kick off Couchbase Channels
+    var myChannels = Channels({
+        getEmail : setupEmailForm,
+        waitForContinue : waitForContinue,
+        cloudDb : "photoshare-control-cloud",
+        // cloudDb : "http://couchbase.ic.ht/photoshare-control",
+        deviceDb : "photoshare-control-device"
+    });
+}
 
-// called by app to kick off Couchbase Channels
-var myChannels = Channels({
-    setupEmailForm : setupEmailForm,
-    waitForContinue : waitForContinue,
-    syncControlDB : CONTROL_DB_URL
-});
 
-// these should be be app pluggable
+function configSync() {
+    console.log("config sync")
+    $("#configSync").show()
+    $('#configSync').css("-webkit-transform","translate(0,0)");
+    // todo back button (Can we use a path framework?)
+}
+
+
+// these are app pluggable
 function waitForContinue(doc, cb) {
-    $('#waiting').find("strong").text(doc.device_code);
+    $('#waiting').show().find("strong").text(doc.device_code);
     $("#waiting").find("input").click(function() {
         cb(false, e(function() {
             $('#waiting').hide();
@@ -277,8 +287,8 @@ function waitForContinue(doc, cb) {
 }
 
 function setupEmailForm(cb) {
-    $('#register').find("form").submit(function(e) {
-        e.preventDefault();
+    $("#register").show().find("form").submit(function(ev) {
+        ev.preventDefault();
         var email = $(this).find("input").val();
         cb(false, email, e(function() {
             $("#register").hide();

@@ -22,7 +22,7 @@
               onclick="window.location.reload();">
         Reload Page
       </button>
-      <button type="button" id="configSync"
+      <button type="button" id="configSyncButton"
               onclick="configSync();">
         Configure Sync
       </button>
@@ -43,18 +43,24 @@
         <button id="send-comment">Send comment!</button>
       </div>
     </div>
-    <div id="register" style="display:none">
-        <form>
-            <p>Email address to use for sync identity:</p>
-            <label><input type="text" id="email" value="" /></label>
-            <p><input type="submit" value="Continue &rarr;"></p>
-            <p>You will be sent a confirmation message.</p>
-        </form>
-    </div>
-    <div id="waiting" style="display:none">
-        <p>Waiting for your email to confirmed. When prompted by the server,
-            enter code <strong></strong>, and then click here:</p>
-            <p><input type="submit" value="Continue &rarr;"></p>
+    <div id="configSync" style="display:none">
+        <div id="register" style="display:none">
+            <form>
+                <p>Email address to use for sync identity:</p>
+                <label><input type="text" id="email" value="" /></label>
+                <p><input type="submit" value="Continue &rarr;"></p>
+                <p>You will be sent a confirmation message.</p>
+            </form>
+        </div>
+        <div id="waiting" style="display:none">
+            <p>Waiting for your email to confirmed. When prompted by the server,
+                enter code <strong></strong>, and then click here:</p>
+                <p><input type="submit" value="Continue &rarr;"></p>
+        </div>
+        <div id="status" style="display:none">
+            <p>You are currently synced with this address <strong></strong>, To login on the web, click this button and check your email:</p>
+                <p><input type="submit" value="Access Cloud &rarr;"></p>
+        </div>
     </div>
     <script type="text/javascript" charset="utf-8" src="script/coux.js"></script>
     <script type="text/javascript" charset="utf-8" src="script/channels.js"></script>

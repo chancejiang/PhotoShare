@@ -13,7 +13,7 @@ button {
   -webkit-background-clip: padding-box;
 }
 
-#waiting, #register, #photoview {
+#configSync, #photoview {
   -webkit-transition-duration: 1s;
   -webkit-transform: translate(100%, 0);
   position: absolute;
