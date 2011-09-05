@@ -263,6 +263,11 @@ function coux(opts, body) {
         opts.data = JSON.stringify(body);
     }
     opts.url = opts.url || opts.uri;
+    if ($.isArray(opts.url)) {
+        opts.url = opt.url.map(function(path) {
+            return encodeURIComponent(path);
+        }).join('/');
+    }
     var req = {
         type: 'GET',
         dataType: 'json',
@@ -282,72 +287,140 @@ function coux(opts, body) {
     $.ajax(req);
 };
 
-var reg, device_code;
-function setupControl(changes) {
+function e(fun) {
+    return function(err, data) {
+        if (err) {
+            console.log(err)
+        } else {
+            fun && fun(err, data)
+        }
+    };
+};
+
+
+// entry point for device registration and sync / backup config
+function setupControl() {
     coux({type : "PUT", uri : "/control"}, function() {
-        coux('/control/_all_docs?include_docs=true&limit=2', function(err, view) {
-            if (!err && view.rows.length == 0) {
-                reg = "needed";
-                // we need to register the device
-            } else if (!err && view.rows.length == 1) {
-                reg = "waiting";
-                device_code = view.rows[0].doc.device_code;
-                // we are in the middle of registering
+        coux(["control","_local/device"], function(err, doc) {
+            if (!err && doc.device_id) {
+                haveDeviceId(doc.device_id)
             } else {
-                // we are normal
-                // connectChanges("control", controlHandler);
-                console.log(err, view)
+                setDeviceId(haveDeviceId);
             }
         });
+    });
+}
+
+function setDeviceId(cb) {
+    coux("/_uuids?count=1", e(function(err, resp) {
+        var uuids = resp.uuids;
+        coux({type : "PUT", uri : ["control","_local/device"]}, {
+            device_id : uuids[0]
+        }, e(function(err, resp) {
+            cb(uuids[0])
+        }));
+    }));
+}
+
+function haveDeviceId(device_id) {
+    coux(['control', device_id], function(err, doc) {
+        if (err) { // no device doc
+            setupEmailForm(e(function(err, email, cb) {
+                // get email address via form
+                makeDeviceDoc(doc.device_id, email, e(function(err, deviceDoc) {
+                    cb()
+                    haveDeviceDoc(deviceDoc)
+                }));
+            }));
+        } else {
+            haveDeviceDoc(doc)
+        }
+    })
+}
+
+function haveDeviceDoc(deviceDoc) {
+    if (deviceDoc.connected) {
+        syncInfo();
+        connectReplication(deviceDoc, e());
+    } else {
+        waitForContinue(deviceDoc, e(function(err, cb) {
+            syncInfo();
+            connectReplication(deviceDoc, e(function(err, resp) {
+                if (!err) {
+                    cb();
+                    deviceDoc.connected = true;
+                    coux({type : "PUT", uri : ["control",deviceDoc._id]}, deviceDoc, e());
+                }
+            }));
+        }));
+    }
+};
+
+function makeDeviceDoc(device_id, cb) {
+    coux("/_uuids?count=4", e(function(err, resp) {
+        var uuids = resp.uuids;
+        var deviceDoc = {
+            _id : device_id,
+            owner : email,
+            type : "device",
+            state : "new",
+            device_code : Math.random().toString().substr(2,4),
+            oauth_creds : { // we need better entropy
+              consumer_key: uuids[0],
+              consumer_secret: uuids[1],
+              token_secret: uuids[2],
+              token: uuids[3]
+            }
+        };
+        coux({type : "PUT", uri : ["control",deviceDoc._id]}, deviceDoc, cb);
+    }));
+}
+
+function connectReplication(deviceDoc, cb) {
+    var syncPoint = {
+        url : "http://couchbase.ic.ht/photoshare-control",
+        auth: {
+            oauth: deviceDoc.oauth_creds
+        }
+    };
+    coux({type : "POST", uri : "/_replicate"}, {
+        source : syncPoint,
+        target : "control"
+    }, e(function() {
+        coux({type : "POST", uri : "/_replicate"}, {
+            target : syncPoint,
+            source : "control"
+        }, cb)
+    }));
+}
+
+function waitForContinue(doc, cb) {
+    $('#waiting').find("strong").text(doc.device_code);
+    $("#waiting").find("input").click(function() {
+        cb(false, e(function() {
+            $('#waiting').hide();
+        }))
+    });
+}
+
+function setupEmailForm(cb) {
+    $('#register').find("form").submit(function(e) {
+        e.preventDefault();
+        var email = $(this).find("input").val();
+        cb(false, email, e(function() {
+            $("#register").hide();
+        }));
     });
 }
 
 function showRegister() {
     $('#register').show();
     $('#register').css("-webkit-transform","translate(0,0)");
-    $('#register').find("form").submit(function(e) {
-        e.preventDefault();
-        var email = $(this).find("input").val();
-        coux("/_uuids?count=4", function(err, resp) {
-            var uuids = resp.uuids;
-            device_code = Math.random().toString().substr(2,4)
-            var deviceDoc = {
-                owner : email,
-                type : "device",
-                state : "new",
-                device_code : device_code,
-                oauth_creds : { // we need better entropy
-                  consumer_key: uuids[0],
-                  consumer_secret: uuids[1],
-                  token_secret: uuids[2],
-                  token: uuids[3]
-                }
-            };
-            coux({type : "POST", uri : "/control"}, deviceDoc, function(err, resp) {
-                if (err) {
-                    console.log(err)
-                } else {
-                    $('#register').hide();
-                    showWaiting();
-                }
-            });
-        });
-    });
 };
 
 function showWaiting(args) {
     $('#waiting').show();
     $('#waiting').css("-webkit-transform","translate(0,0)");
-    $('#waiting').find("strong").text(device_code);
 }
 
 
-function configSync() {
-    // if we have the user email address
-    if (reg == "waiting") {
-        showWaiting();
-    } else {
-        showRegister();
-    }
-
-}
