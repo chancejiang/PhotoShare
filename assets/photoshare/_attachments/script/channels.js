@@ -71,16 +71,21 @@ var Channels = function(opts) {
         console.log("haveDeviceDoc")
         
         if (deviceDoc.connected) {
-            // syncInfo();
-            connectReplication(deviceDoc, e());
+            // controlChanges();
+            connectReplication(deviceDoc, e(function() {
+                opts.connected(false, deviceDoc);
+            }));
         } else {
             opts.waitForContinue(deviceDoc, e(function(err, closeContinue) {
-                // syncInfo();
+                // controlChanges();
                 connectReplication(deviceDoc, e(function(err, resp) {
                     if (!err) {
                         closeContinue();
                         deviceDoc.connected = true;
-                        coux({type : "PUT", uri : [deviceDb,deviceDoc._id]}, deviceDoc, e());
+                        coux({type : "PUT", uri : [deviceDb,deviceDoc._id]}, 
+                            deviceDoc, e(function() {
+                                opts.connected(false, deviceDoc);
+                        }));
                     }
                 }));
             }));
@@ -123,11 +128,13 @@ var Channels = function(opts) {
         };
         coux({type : "POST", uri : "/_replicate"}, {
             source : syncPoint,
-            target : deviceDb
+            target : deviceDb,
+            continous : true
         }, e(function() {
             coux({type : "POST", uri : "/_replicate"}, {
                 target : syncPoint,
-                source : deviceDb
+                source : deviceDb,
+                continous : true
             }, cb)
         }));
     }

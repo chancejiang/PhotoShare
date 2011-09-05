@@ -261,7 +261,8 @@ function startControl() {
     var myChannels = Channels({
         getEmail : setupEmailForm,
         waitForContinue : waitForContinue,
-        cloudDb : "photoshare-control-cloud",
+        connected : connected,
+        cloudDb : "http://127.0.0.1:5984/photoshare-control-cloud",
         // cloudDb : "http://couchbase.ic.ht/photoshare-control",
         deviceDb : "photoshare-control-device"
     });
@@ -296,14 +297,7 @@ function setupEmailForm(cb) {
     });
 }
 
-// function showRegister() {
-//     $('#register').show();
-//     $('#register').css("-webkit-transform","translate(0,0)");
-// };
-// 
-// function showWaiting(args) {
-//     $('#waiting').show();
-//     $('#waiting').css("-webkit-transform","translate(0,0)");
-// }
-
+function connected(err, doc) {
+    $('#status').show().find("strong").text(doc.owner);
+}
 
