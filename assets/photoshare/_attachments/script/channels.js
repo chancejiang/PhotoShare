@@ -23,7 +23,6 @@ var Channels = function(opts) {
     // entry point for device registration and sync / backup config
     function setupControl() {
         console.log("setupControl")
-        
         coux({type : "PUT", uri : [deviceDb]}, function() {
             coux([deviceDb,"_local/device"], function(err, doc) {
                 if (!err && doc.device_id) {
@@ -67,17 +66,19 @@ var Channels = function(opts) {
         })
     }
 
+    // why is this one turning into a controller?
     function haveDeviceDoc(deviceDoc) {
         console.log("haveDeviceDoc")
         
         if (deviceDoc.connected) {
-            // controlChanges();
+            syncSubscriptions();
             connectReplication(deviceDoc, e(function() {
                 opts.connected(false, deviceDoc);
             }));
         } else {
+            pushDeviceDoc();
             opts.waitForContinue(deviceDoc, e(function(err, closeContinue) {
-                // controlChanges();
+                syncSubscriptions();
                 connectReplication(deviceDoc, e(function(err, resp) {
                     if (!err) {
                         closeContinue();
@@ -91,6 +92,14 @@ var Channels = function(opts) {
             }));
         }
     };
+
+    function pushDeviceDoc() {
+        coux({type : "POST", uri : "/_replicate"}, {
+            target : opts.cloudDb,
+            source : deviceDb,
+            continous : true
+        }, e());
+    }
 
     function makeDeviceDoc(device_id, email, cb) {
         console.log("makeDeviceDoc")
@@ -126,6 +135,7 @@ var Channels = function(opts) {
                 oauth: deviceDoc.oauth_creds
             }
         };
+        // todo this should be filtered so I don't get noise I don't care about
         coux({type : "POST", uri : "/_replicate"}, {
             source : syncPoint,
             target : deviceDb,
@@ -138,5 +148,26 @@ var Channels = function(opts) {
             }, cb)
         }));
     }
+
+    // here we connect to the state machine and do stuff in reaction to events on subscription documents or whatever...
+    function syncSubscriptions() {
+        // now it is time to configure all subscription replications
+        // what about databases without subscriptions?
+        // (eg: My Photos) Do we have a generic approach to all renegade new database
+        // creation on the client or do we expect to be the sole manager of database
+        // state?
+        // first, build the map of databases we should have (based on a view)
+        coux([deviceDb,"_design","channels","_view","subscriptions"], e(function(err, view) {
+            var subs = {};
+            console.log(view.rows)
+            coux(["_all_dbs"], function(err, dbs) {
+                console.log(dbs)
+            });
+        }));
+        // now, look at the real dbs, and check them off the list one by one
+        // any database without changes, we want to create subscriptions for right away
+        // connect to changes
+        // anytime a db is created or a subscription is updated, repeat
+    };
     
 };
