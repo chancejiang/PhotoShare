@@ -49,22 +49,50 @@ var Channels = function(opts) {
 
     function haveDeviceId(device_id) {
         console.log("haveDeviceId")
-        
+        var designPath = [deviceDb, "_design", "channels-device"];
+        coux(designPath, function(err, doc) {
+            if (err) { // no design doc
+                makeDesignDoc(designPath, e(function(err, ok) {
+                    haveDesignDoc(device_id)
+                }));
+            } else {
+                haveDesignDoc(device_id)
+            }
+        });
+    }
+
+    function makeDesignDoc(designPath, cb) {
+        var designDoc = {
+            // _id : "_design/channels",
+            views : {
+                subscriptions : (function(doc) {
+                    if (doc.type == "subscription") {
+                        emit(doc.device_id, null)
+                    }
+                }).toString()
+            }
+        };
+        coux({type : "PUT", uri : designPath}, designDoc, cb);
+    }
+    
+
+    function haveDesignDoc(device_id) {
         coux([deviceDb, device_id], function(err, doc) {
             if (err) { // no device doc
                 console.log("getEmail")
-                opts.getEmail(e(function(err, email, cb) {
+                opts.getEmail(e(function(err, email, gotEmail) {
                     // get email address via form
                     makeDeviceDoc(device_id, email, e(function(err, deviceDoc) {
-                        cb()
+                        gotEmail()
                         haveDeviceDoc(deviceDoc)
                     }));
                 }));
             } else {
                 haveDeviceDoc(doc)
             }
-        })
+        });
     }
+    
 
     // why is this one turning into a controller?
     function haveDeviceDoc(deviceDoc) {
@@ -93,14 +121,6 @@ var Channels = function(opts) {
         }
     };
 
-    function pushDeviceDoc() {
-        coux({type : "POST", uri : "/_replicate"}, {
-            target : opts.cloudDb,
-            source : deviceDb,
-            continous : true
-        }, e());
-    }
-
     function makeDeviceDoc(device_id, email, cb) {
         console.log("makeDeviceDoc")
         
@@ -124,6 +144,14 @@ var Channels = function(opts) {
                 cb(false, deviceDoc);
             }));
         }));
+    }
+
+    function pushDeviceDoc() {
+        coux({type : "POST", uri : "/_replicate"}, {
+            target : opts.cloudDb,
+            source : deviceDb,
+            continous : true
+        }, e());
     }
 
     function connectReplication(deviceDoc, cb) {
@@ -157,7 +185,7 @@ var Channels = function(opts) {
         // creation on the client or do we expect to be the sole manager of database
         // state?
         // first, build the map of databases we should have (based on a view)
-        coux([deviceDb,"_design","channels","_view","subscriptions"], e(function(err, view) {
+        coux([deviceDb,"_design","channels-device","_view","subscriptions"], e(function(err, view) {
             var subs = {};
             console.log(view.rows)
             coux(["_all_dbs"], function(err, dbs) {
