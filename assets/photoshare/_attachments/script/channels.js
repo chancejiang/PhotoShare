@@ -16,7 +16,7 @@ var Channels = function(opts) {
     var deviceDb = opts.deviceDb || "control";
 
     if (!(opts.waitForContinue && opts.getEmail)) {
-        throw("opts.waitForContinue && opts.getEmail are requried")
+        throw("opts.waitForContinue && opts.getEmail are required")
     }
     
     setupControl();
@@ -74,7 +74,6 @@ var Channels = function(opts) {
         };
         coux({type : "PUT", uri : designPath}, designDoc, cb);
     }
-    
 
     function haveDesignDoc(device_id) {
         coux([deviceDb, device_id], function(err, doc) {
