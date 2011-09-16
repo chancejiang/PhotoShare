@@ -12,8 +12,8 @@ function e(fun) {
 };
 
 var Channels = function(opts) {
-    
-    var deviceDb = opts.deviceDb || "control";
+    console.log(opts)
+    var deviceDb = opts.device || "control";
 
     if (!(opts.waitForContinue && opts.getEmail)) {
         throw("opts.waitForContinue && opts.getEmail are required")
@@ -147,7 +147,7 @@ var Channels = function(opts) {
 
     function pushDeviceDoc() {
         coux({type : "POST", uri : "/_replicate"}, {
-            target : opts.cloudDb,
+            target : opts.cloud,
             source : deviceDb,
             continous : true
         }, e());
@@ -157,7 +157,7 @@ var Channels = function(opts) {
         console.log("connectReplication");
         
         var syncPoint = {
-            url : opts.cloudDb,
+            url : opts.cloud,
             auth: {
                 oauth: deviceDoc.oauth_creds
             }
@@ -184,6 +184,7 @@ var Channels = function(opts) {
         // creation on the client or do we expect to be the sole manager of database
         // state?
         // first, build the map of databases we should have (based on a view)
+        console.log("syncSubscriptions")
         coux([deviceDb,"_design","channels-device","_view","subscriptions"], e(function(err, view) {
             var subs = {};
             console.log(view.rows)
