@@ -1,0 +1,35 @@
+body {
+  font-family: sans-serif;
+}
+
+.type, .state, .link {
+  width : 6em;
+  display:block;
+  float:left;
+  padding:2px;
+}
+
+.type {
+  font-weight: bold;  
+  clear:left;
+}
+
+.new {
+  background:#fee;
+}
+
+.used {
+  background:#efe;
+}
+
+.active {
+  background:#cfc;
+}
+
+.error {
+  background:#fcc;
+}
+
+li {
+  list-style-type: none;
+}
