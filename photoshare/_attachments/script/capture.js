@@ -3,6 +3,10 @@ PhoneGap.UsePolling = true;
 
 var selectedPictureId = null;
 
+var mypath = document.location.pathname.split('/')
+    mydb = mypath[1];
+    mydesign = mypath[3];
+
 // prompt = console.log
 
 // Helper Methods
@@ -48,13 +52,14 @@ function setMessage(message) {
 // Syncpoint
 
 function setupSync() {
-    var syncpoint = "http://couchbase.ic.ht/photoshare";
+    // var syncpoint = "http://couchbase.ic.ht/photoshare";
+    // should be controlled by Channels
     $.ajax({
       type: 'POST',
       url: '/_replicate',
       data: JSON.stringify({
           source : syncpoint,
-          target : "photoshare",
+          target : mydb,
           filter : "photoshare/thumbnail"
       }),
       dataType: 'json',
@@ -65,7 +70,7 @@ function setupSync() {
       url: '/_replicate',
       data: JSON.stringify({
           target : syncpoint,
-          source : "photoshare"
+          source : mydb
       }),
       dataType: 'json',
       contentType: 'application/json'
@@ -240,8 +245,8 @@ function startCamera() {
 
 
 function start() {
+    connectChanges(mydb, listPictures);
     // setup listing of pictures and auto refresh
-    connectChanges("photoshare", listPictures);
     // setupSync();
     startControl()
 }
@@ -257,14 +262,16 @@ document.addEventListener("deviceready", startCamera, true);
 $('body').ready(startApp);
 
 function startControl() {
-    // called by app to kick off Couchbase Channels
-    var myChannels = Channels({
-        getEmail : setupEmailForm,
-        waitForContinue : waitForContinue,
-        connected : connected,
-        cloudDb : "http://127.0.0.1:5984/photoshare-control-cloud",
-        // cloudDb : "http://couchbase.ic.ht/photoshare-control",
-        deviceDb : "photoshare-control-device"
+    coux([mydb, "_design", mydesign], function(err, doc) {
+        var config = doc.config;
+        // called by app to kick off Couchbase Channels
+        var myChannels = Channels({
+            getEmail : setupEmailForm,
+            waitForContinue : waitForContinue,
+            connected : connected,
+            cloud : config.cloud,
+            device : config.device
+        });
     });
 }
 
