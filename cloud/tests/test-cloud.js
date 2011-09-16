@@ -79,7 +79,9 @@ function fixtureDb(fun) {
 // test that a new channel doc gets made ready and a database is created for it
 fixtureDb(function() {
     // start cloud server
-    cloud.start(db_host, db_name);
+    cloud.start({
+        cloud : "http://jchrisa:jchrisa@127.0.0.1:5984/test-control"
+    });
     start("send new device email");
 
     // create a new device doc

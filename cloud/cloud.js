@@ -2,7 +2,7 @@ var docstate = require("./docstate")
     , nano = require("nano")
     ;
 
-var PUBLIC_HOST_URL = "http://localhost:5984/"
+
 
 function errLog(err, resp) {
   if (err) {
@@ -188,8 +188,10 @@ function handleChannels(control, db, server) {
     });
 };
 
-exports.start = function(db_host, db_name) {
-    var control = docstate.connect(db_host, db_name)
+exports.start = function(config) {
+    var c = config.cloud.split('/');
+    var db_name = c.pop(), db_host = c.join('/');
+    var control = docstate.connect(config.cloud)
         , server = nano(db_host)
         , db = server.use(db_name)
         ;
@@ -200,17 +202,6 @@ exports.start = function(db_host, db_name) {
     control.start();
 };
 
-// put device_creds as pending delegate on the user (w/ timestamps for expiry as these are created on the client's pace...)
-//   (maybe create user*)
-// new doc can only be read by the user associated with the device creds, 
-// so until the pending creds become active, the device can't connect.
-// email the user with link to confirm. 
-// when the email goes, set device-doc.state = email-sent
-
-
-
-
-// let's talk about new backups
 
 
 

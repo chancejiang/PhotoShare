@@ -7,8 +7,7 @@ CD into the cross platform HTML5 couchapp codebase and push the couchapp to your
 
 Start an instance of the Cloud manager on your server.
 
-    cd cloud
-    node cloud.js
+    node cloud/run/photoshare.js 
 
 Visit your Couchapp and try making a new channel. All your channels should be mirrored on the cloud device.
 

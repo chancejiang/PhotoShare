@@ -2,8 +2,8 @@ var follow = require("follow")
     , stately = require("stately")
     ;
 
-exports.connect = function(db_host, db_name) {
-    var feed = new follow.Feed({db : [db_host, db_name].join('/')})
+exports.connect = function(url) {
+    var feed = new follow.Feed({db : url})
         , safeMachine, safeStates = {}
         , cautiousMachine, unsafeStates = {}
         ;
