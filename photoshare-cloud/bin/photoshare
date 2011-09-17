@@ -1,0 +1,14 @@
+#!/usr/bin/env node
+
+var fs = require("fs")
+    , config = JSON.parse(fs.readFileSync('photoshare-couchapp/config.json'))
+    , PhotoShare = require('../lib/photoshare.js').PhotoShare;
+
+var photoshare = new PhotoShare({
+  name: "photoshare",
+  config: config,
+  debug : true
+});
+
+photoshare.start();
+

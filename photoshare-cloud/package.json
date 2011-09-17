@@ -1,0 +1,15 @@
+{ "name": "photoshare-cloud"
+, "version": "0.0.1"
+, "author": { "name": "Chris Anderson"
+            , "email": "jchris@couchbase.com" }
+, "description": "Application for thumbnailing photos. Uses Couchbase SyncPoint to manage users."
+, "homepage": "http://github.com/couchbaselabs"
+, "engines": [ "node" ]
+, "bin": {
+   "photoshare-cloud": "./bin/photoshare" },
+   "dependencies": {
+     "hook.io": "0.7.x",
+     "hook.io-syncpoint": "0.0.x"
+  }
+, "main": "lib/photoshare"
+}

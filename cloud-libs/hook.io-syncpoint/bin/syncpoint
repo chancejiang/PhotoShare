@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+
+var SyncPoint = require('../lib/syncpoint').SyncPoint
+
+var sync = new SyncPoint(config);
+sync.start();
+
