@@ -16,7 +16,7 @@ Visit your Couchapp and try making a new channel. All your channels should be mi
 photoshare/config.json should look like this for local testing (where you laptop is your device and your cloud):
 
 {
-    "cloud" : "http://127.0.0.1:5984/photoshare-control-cloud",
+    "cloud" : "http://localhost:5984/photoshare-control-cloud",
     "device" : "photoshare-control-device"
 }
 
@@ -26,4 +26,11 @@ Or it could look like this if you are deploying to Iris Couch:
     "cloud" : "http://couchbase.ic.ht/photoshare-control",
     "device" : "photoshare-control-device"
 }
+
+
+Welcome to PhotoShare!
+
+To visit a your local copy of the app, visit: config.device
+To see your data in the cloud, visit: config.cloud
+To adminster the cloud, visit: admin app url
 

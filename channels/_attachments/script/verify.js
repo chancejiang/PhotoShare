@@ -1,6 +1,9 @@
 $(function() {
-    var confirm_code = location.hash.substr(1);
-    var db = location.pathname.split('/')[1];
+    var hash = location.hash.substr(1).split('-')
+    ,  db = location.pathname.split('/')[1]
+    , confirm_code = hash[0]
+    , owner = hash[1];
+    $('strong').text(owner);
     $("form").submit(function(ev) {
         ev.preventDefault();
         var device_code = $(this).find("input.code").val();
@@ -9,7 +12,7 @@ $(function() {
             state : "clicked",
             device_code : device_code, 
             confirm_code :confirm_code}, function(err, ok) {
-                $("h1").text("thank you, please continue on your device");
+                $("h1").text("thank you "+owner+", please continue on your device");
                 $("form").hide()
             });
     });
