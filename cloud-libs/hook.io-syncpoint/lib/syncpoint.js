@@ -43,6 +43,16 @@ var SyncPoint = exports.SyncPoint = function(options){
         type : 'syncpoint-registration',
         debug : true,
         config : options.config
+    }, mailer = {
+       name : 'sync-mailer' ,
+       type : 'mailer',
+         "mailer": {
+           "host": "localhost",
+           "username": "foo@bar.com",
+           "password": "1234",
+           "domain": "localhost"
+         },
+       debug : true
     }, follow = {
         name : "control-db",
         type : "couch",
@@ -50,7 +60,11 @@ var SyncPoint = exports.SyncPoint = function(options){
         'feed-db' : config.cloud,
         'feed-since' : 0
     }
-    self.spawn([registration]);
+    self.spawn([registration], function(e) {
+        if (e) {
+            console.log("sp", e.stack)
+        }
+    });
     var children = [], spawned = false;
     self.on('*::ready', function() {
         children.push(this.event);
