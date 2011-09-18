@@ -12,6 +12,9 @@ $(function() {
             if (row.doc.confirm_code && row.key[1] == "confirming") {
                 li.append($('<a>Confirm link</a>').attr({"href":"verify.html#"+row.doc.confirm_code+'-'+row.doc.owner}))
             }
+            if (row.doc && row.doc.owner) {
+                li.append($('<span></span>').text(row.doc.owner));
+            }
             ul.append(li)
         });
     });

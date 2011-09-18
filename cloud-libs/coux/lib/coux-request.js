@@ -7,7 +7,8 @@ var coux = exports.coux = function(opts, body) {
     if (typeof opts === 'string' || Array.isArray(opts)) { 
         opts = {url:opts};
     }
-    var cb = arguments[arguments.length -1] || function() {console.log("empty callback", opts)};
+    var cb = arguments[Math.max(1,arguments.length -1)] || function() {console.log("empty callback", opts)};
+
     if (arguments.length == 3) {
         opts.body = JSON.stringify(body);
     }
@@ -43,6 +44,13 @@ var coux = exports.coux = function(opts, body) {
     request(opts, function(err, resp, body) {
         if (err) {
             cb(err, resp, body)
+        } else if (resp.statusCode >= 400) {
+            try {
+                var cerr = JSON.parse(body);
+                cb(cerr, resp);
+            } catch(e) {
+                cb(e, body)
+            }
         } else {
             try {
                 cb(false, JSON.parse(body))

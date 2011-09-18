@@ -10,9 +10,24 @@ function coux(opts, body) {
     }
     opts.url = opts.url || opts.uri;
     if ($.isArray(opts.url)) {
+        if (typeof opts.url[opts.url.length-1] == 'object') {
+            var query = [], v, q = opts.url.pop();
+            for (var k in q) {
+                if (['startkey', 'endkey', 'key'].indexOf(k) !== -1) {
+                    v = JSON.stringify(q[k])
+                } else {
+                    v = q[k];
+                }
+                query.push(encodeURIComponent(k)+'='+encodeURIComponent(v));
+            }
+            query.join('&');
+        }
         opts.url = ([""].concat(opts.url).map(function(path) {
             return encodeURIComponent(path);
         })).join('/');
+        if (query) {
+            opts.url = opts.url + "?" + query;
+        }
     }
     var req = {
         type: 'GET',

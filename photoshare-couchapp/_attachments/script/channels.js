@@ -68,7 +68,7 @@ var Channels = function(opts) {
                 subscriptions : {
                     map : function(doc) {
                         if (doc.type == "subscription") {
-                            emit(doc.device_id, null)
+                            emit(doc.device_id, doc.local_db)
                         }
                     }.toString()
                 }
@@ -104,22 +104,18 @@ var Channels = function(opts) {
         
         if (deviceDoc.state == "active") {
             console.log("deviceDoc.connected")
-            syncSubscriptions();
+            syncSubscriptionDefs();
             connectReplication(deviceDoc, e(function() {
                 opts.connected(false, deviceDoc);
             }));
         } else {
             pushDeviceDoc();
             opts.waitForContinue(deviceDoc, e(function(err, closeContinue) {
-                syncSubscriptions();
+                syncSubscriptionDefs();
                 connectReplication(deviceDoc, e(function(err, resp) {
                     if (!err) {
                         closeContinue();
-                        deviceDoc.connected = true;
-                        coux({type : "PUT", uri : [deviceDb,deviceDoc._id]}, 
-                            deviceDoc, e(function() {
-                                opts.connected(false, deviceDoc);
-                        }));
+                        opts.connected(false, deviceDoc);
                     }
                 }));
             }));
@@ -184,7 +180,7 @@ var Channels = function(opts) {
     }
 
     // here we connect to the state machine and do stuff in reaction to events on subscription documents or whatever...
-    function syncSubscriptions() {
+    function syncSubscriptionDefs() {
         // now it is time to configure all subscription replications
         // what about databases without subscriptions?
         // (eg: My Photos) Do we have a generic approach to all renegade new database
@@ -192,14 +188,15 @@ var Channels = function(opts) {
         // state?
         // first, build the map of databases we should have (based on a view)
         console.log("syncSubscriptions")
-        coux([deviceDb,"_design","channels-device","_view","subscriptions"], e(function(err, view) {
-            var local_dbs = view.rows.map(function(row) {return row.value});
-            console.log("subs",view.rows)
+        coux([deviceDb,"_design","channels-device","_view","subscriptions", {key : deviceId}], e(function(err, view) {
+            var local_db_subs = view.rows.map(function(row) {return row.value});
+            console.log("local_db_subs",local_db_subs)
             
             coux(["_all_dbs"], function(err, dbs) {
                 var needSubscriptions = dbs.filter(function(db) {
-                    return db !== deviceDb && db.indexOf("_") !== 0 && local_dbs.indexOf(db) == -1
+                    return db !== deviceDb && db.indexOf("_") !== 0 && local_db_subs.indexOf(db) == -1
                 })
+                console.log(needSubscriptions)
                 coux('/_uuids?count='+needSubscriptions.length, function(err, data) {
                     var subs = [], channels = [];
                     var channels = needSubscriptions.map(function(db) {
@@ -214,6 +211,8 @@ var Channels = function(opts) {
                     var subs = channels.map(function(ch) {
                         return {
                             _id : ch._id + "-sub-" + owner,
+                            type : "subscription",
+                            state : 'active', // active subscriptions are ready to sync
                             device_id : deviceId,
                             owner : owner,
                             local_db :ch.name,
@@ -222,14 +221,24 @@ var Channels = function(opts) {
                     });
                     var bulk = channels.concat(subs);
                     console.log("bulk", bulk)
-                    coux({type : "POST", url :[deviceDb,"_bulk_docs"]}, {docs:bulk}, function(err, ok) {
-                        if (!err) {
-                            console.log("made subscriptions")
-                        }
-                    });
+                    if (bulk.length > 0) {
+                        coux({type : "POST", url :[deviceDb,"_bulk_docs"]}, {docs:bulk}, function(err, ok) {
+                            if (!err) {
+                                console.log("made subscriptions")
+                                 syncSubscribedDBs()
+                            }
+                        });
+                    } else {
+                         syncSubscribedDBs()
+                    }
+
                 });
             });
         }));
     };
+    function syncSubscribedDBs() {
+        console.log("syncSubscribedDBs")
+    }
+    
     
 };

@@ -74,7 +74,9 @@ Registration.prototype.setupControl = function(config){
         var serverUrl = d.join('/');
         
         ensureUserDoc(serverUrl, deviceDoc.owner, function(err, userDoc) {
+            console.log('userDoc before', userDoc)
             userDoc = applyOAuth(userDoc, deviceDoc._id, deviceDoc.oauth_creds);
+            console.log('userDoc', userDoc)
             coux.put([serverUrl, "_users", userDoc._id], userDoc, function(err) {
               if (err) {
                   console.log("rrr", err.stack)
@@ -127,7 +129,8 @@ function sendEmail(hook, address, link, cb) {
 function ensureUserDoc(serverUrl, name, fun) {
     var user_doc_id = "org.couchdb.user:"+name;
     coux([serverUrl, "_users", user_doc_id], function(err, userDoc) {
-        if (err && err.status_code == 404) {
+        // console.log(err, userDoc)
+        if (err && err.error == 'not_found') {
             fun(false, {
                 _id : user_doc_id,
                 type : "user",
@@ -135,7 +138,7 @@ function ensureUserDoc(serverUrl, name, fun) {
                 roles : []
             });
         } else if (err) {
-            console.log("Err", err.stack)
+            console.log("Err".red, err)
         } else {
             fun(false, userDoc);
         }
