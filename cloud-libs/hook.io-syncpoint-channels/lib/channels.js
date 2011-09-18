@@ -42,7 +42,7 @@ Channels.prototype.setupControl = function(config){
     control.safe("channel", "new", function(doc) {
         var db_name = "db-"+doc._id;
         if (doc["public"]) {
-            errLog("PDI","please implement public databases")
+            console.log("PDI","please implement public databases")
         } else {
             coux.put([serverUrl, db_name], function(err, resp) {
                 if (err) {
@@ -50,18 +50,22 @@ Channels.prototype.setupControl = function(config){
                     // 412 means the db already exists
                     doc.state = "error "+err.code;
                     doc.error = "db_name exists: "+db_name;
-                    coux.put([controlDb, doc._id], doc, errLog())
-                    errLog(err, resp);
+                    coux.put([controlDb, doc._id], doc, function(err, ok) {
+                        if (err) console.error(err);
+                    })
+                    console.log(err, resp);
                 } else {
                     // only set up creds the first time
                     coux([serverUrl, db_name, "_security"],function(err, sec) {
                         if (err) {sec = {members:{names:[],roles:[]}}}
                         if (sec.members.names.indexOf(doc.owner) == -1) {
                             sec.members.names.push(doc.owner);
-                            coux.put([db_name, "_security"], function(err, sec) {
+                            coux.put([db_name, "_security"], sec, function(err, sec) {
                                 doc.state = "ready";
                                 doc.syncpoint = serverUrl + '/' + db_name;
-                                coux.put([controlDb, doc._id], doc, errLog())
+                                coux.put([controlDb, doc._id], doc, function(err, ok) {
+                                    if (err) console.error(err);
+                                })
                             });
                         }
                             
@@ -71,4 +75,5 @@ Channels.prototype.setupControl = function(config){
             });
         }
     });
+    return control;
 };

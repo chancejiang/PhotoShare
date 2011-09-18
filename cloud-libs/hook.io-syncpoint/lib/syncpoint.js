@@ -43,6 +43,11 @@ var SyncPoint = exports.SyncPoint = function(options){
         type : 'syncpoint-registration',
         debug : true,
         config : options.config
+    }, channels = {
+        name : 'channels',
+        type : 'syncpoint-channels',
+        debug : true,
+        config : options.config
     }, mailer = {
        name : 'sync-mailer' ,
        type : 'mailer',
@@ -65,6 +70,11 @@ var SyncPoint = exports.SyncPoint = function(options){
             console.log("sp", e.stack)
         }
     });
+    self.spawn([channels], function(e) {
+        if (e) {
+            console.log("sp", e.stack)
+        }
+    });
     var children = [], spawned = false;
     self.on('*::ready', function() {
         children.push(this.event);
@@ -72,7 +82,7 @@ var SyncPoint = exports.SyncPoint = function(options){
     });
     
     function maybeSpawnFollow(args) {
-        if (!spawned && children.indexOf("registration::ready") !== -1) {
+        if (!spawned && children.indexOf("registration::ready") !== -1 && children.indexOf("channels::ready") !== -1) {
             spawned = true
             self.spawn([follow])
         }

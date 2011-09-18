@@ -6,9 +6,10 @@
 , "homepage": "http://github.com/couchbaselabs"
 , "engines": [ "node" ]
 , "dependencies" : {
-     "hook.io": "0.7.x",
-     "hook.io-couch": "0.1.x",
-     "docstate" : "0.0.x"
+    "hook.io": "0.7.x",
+    "docstate" : "0.0.x",
+    "coux" : "0.0.x",
+    "errlog" : "0.0.x"
 }
 , "main": "lib/channels"
 }

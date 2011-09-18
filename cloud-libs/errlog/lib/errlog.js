@@ -6,7 +6,7 @@ exports.errLog = function errLog(cb) {
             console.error("err".red, arguments[0])
             console.error(arguments)
         } else {
-            cb.apply(null, arguments)
+            cb && cb.apply(null, arguments)
         }
     };
 };
