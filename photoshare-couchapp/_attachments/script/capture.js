@@ -286,6 +286,7 @@ function configSync() {
 
 // these are app pluggable
 function waitForContinue(doc, cb) {
+    console.log("waitForContinue")
     $('#waiting').show().find("strong").text(doc.device_code);
     $("#waiting").find("input").click(function() {
         cb(false, e(function() {
@@ -305,6 +306,7 @@ function setupEmailForm(cb) {
 }
 
 function connected(err, doc) {
+    console.log("connected")
     $('#status').show().find("strong").text(doc.owner);
 }
 

@@ -97,7 +97,8 @@ var Channels = function(opts) {
     function haveDeviceDoc(deviceDoc) {
         console.log("haveDeviceDoc")
         
-        if (deviceDoc.connected) {
+        if (deviceDoc.state == "active") {
+            console.log("deviceDoc.connected")
             syncSubscriptions();
             connectReplication(deviceDoc, e(function() {
                 opts.connected(false, deviceDoc);
@@ -146,6 +147,7 @@ var Channels = function(opts) {
     }
 
     function pushDeviceDoc() {
+        console.log("pushDeviceDoc")
         coux({type : "POST", uri : "/_replicate"}, {
             target : opts.cloud,
             source : deviceDb,
@@ -162,6 +164,7 @@ var Channels = function(opts) {
                 oauth: deviceDoc.oauth_creds
             }
         };
+        syncPoint = opts.cloud;
         // todo this should be filtered so I don't get noise I don't care about
         coux({type : "POST", uri : "/_replicate"}, {
             source : syncPoint,

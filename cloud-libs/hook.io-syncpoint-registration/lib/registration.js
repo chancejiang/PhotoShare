@@ -24,7 +24,7 @@ var Registration = exports.Registration = function(options){
         control.start();
         self.emit("ready")
         self.on('*::change', function(change) {
-            console.log(change.doc.type, change.doc.state)
+            console.log(change.doc.type, change.doc.state, change.doc._id)
             control.handle(change.doc)
         });
     });
