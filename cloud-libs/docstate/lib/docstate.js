@@ -5,16 +5,7 @@ exports.control = function(url) {
         , cautiousMachine, unsafeStates = {}
         ;
 
-    function logFun(obj, cb) {
-        console.log(obj.type, obj.state)
-        cb(obj)
-    };    
-
     function makeMachines() {
-        if (true) {
-            safeStates._before = logFun;
-            unsafeStates._before = logFun;
-        }
         safeMachine = stately.define(safeStates);
         cautiousMachine = stately.define(unsafeStates);
     };

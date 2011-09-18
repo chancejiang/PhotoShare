@@ -7,7 +7,7 @@ var fs = require("fs")
 var photoshare = new PhotoShare({
   name: "photoshare",
   config: config,
-  debug : true
+  debug : false
 });
 
 photoshare.start();

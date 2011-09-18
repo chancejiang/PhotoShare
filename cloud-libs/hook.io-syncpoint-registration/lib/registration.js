@@ -21,14 +21,15 @@ var Registration = exports.Registration = function(options){
         console.log("                     Device config ", config.device);
 
         var control = self.setupControl(config);
-
-        self.on('control-db::change', function(change){
+        control.start();
+        self.emit("ready")
+        self.on('*::change', function(change) {
+            console.log(change.doc.type, change.doc.state)
             control.handle(change.doc)
         });
     });
 };
 
-// CouchHook inherits from Hookf
 util.inherits(Registration, Hook);
 
 Registration.prototype.setupControl = function(config){
@@ -42,10 +43,8 @@ Registration.prototype.setupControl = function(config){
         var device_code = doc.device_code;
         // load the device doc with confirm_code == code
         // TODO use a real view
-
         coux([controlDb, "_all_docs", {include_docs : true}], errLog(function(err, view) {
             var deviceDoc;
-            // console.log("rows", view.rows)
             view.rows.forEach(function(row) {
                if (row.doc.confirm_code && row.doc.confirm_code == confirm_code &&
                    row.doc.device_code && row.doc.device_code == device_code &&
@@ -57,14 +56,12 @@ Registration.prototype.setupControl = function(config){
                 deviceDoc.state = "confirmed";
                 coux.put([controlDb, deviceDoc._id], deviceDoc, function(err, ok) {
                     doc.state = "used";
-                    // db.insert(doc, errLog);
                     coux.put([controlDb, doc._id], doc, errLog);
                 });
             } else {
                 doc.state = "error";
                 doc.error = "no matching device";
                 coux.put([controlDb, doc._id], doc, errLog);
-                // db.insert(doc, errLog);
             }
         }));
     });
@@ -72,18 +69,23 @@ Registration.prototype.setupControl = function(config){
     control.safe("device", "confirmed", function(deviceDoc) {
         // now we need to ensure the user exists and make sure the device has a delegate on it
         // move device_creds to user document, now the device can use them to auth as the user
-        ensureUserDoc(userDb, deviceDoc.owner, function(err, userDoc) {
+        
+        var d = controlDb.split('/');
+        d.pop();
+        var serverUrl = d.join('/');
+        
+        ensureUserDoc(serverUrl, deviceDoc.owner, function(err, userDoc) {
             userDoc = applyOAuth(userDoc, deviceDoc._id, deviceDoc.oauth_creds);
-            coux.put(["_users", userDoc._id], userDoc, function(err) {
+            coux.put([serverUrl, "_users", userDoc._id], userDoc, function(err) {
               if (err) {
+                  console.log("rrr", err.stack)
                 errLog(err, deviceDoc.owner)
               } else {
                   // set the config that we need with oauth user doc capability
-    setOAuthConfig(userDoc, deviceDoc._id, deviceDoc.oauth_creds, server, function(err) {
+                  setOAuthConfig(userDoc, deviceDoc._id, deviceDoc.oauth_creds, serverUrl, function(err) {
                     if (!err) {
                         deviceDoc.state = "active";
                         coux.put([controlDb, deviceDoc._id], deviceDoc, errLog);          
-                        // db.insert(deviceDoc, errLog);
                     }
                 });
               }
@@ -104,7 +106,7 @@ Registration.prototype.setupControl = function(config){
         }
       });
     });
-
+    
     return control;
 }
 
@@ -123,9 +125,9 @@ function sendEmail(hook, address, link, cb) {
 }
 
 
-function ensureUserDoc(userDb, name, fun) {
+function ensureUserDoc(serverUrl, name, fun) {
     var user_doc_id = "org.couchdb.user:"+name;
-    userDb.get(user_doc_id, function(err, r, userDoc) {
+    coux([serverUrl, "_users", user_doc_id], function(err, userDoc) {
         if (err && err.status_code == 404) {
             fun(false, {
                 _id : user_doc_id,
@@ -133,13 +135,15 @@ function ensureUserDoc(userDb, name, fun) {
                 name : name,
                 roles : []
             });
+        } else if (err) {
+            console.log("Err", err.stack)
         } else {
             fun(false, userDoc);
         }
     });
 }
 
-function setOAuthConfig(userDoc, id, creds, server, cb) {
+function setOAuthConfig(userDoc, id, creds, serverUrl, cb) {
     var rc = 0, ops = [
         ["oauth_consumer_secrets", creds.consumer_key, creds.consumer_secret],
         ["oauth_token_users", creds.token, userDoc.name],
@@ -147,10 +151,7 @@ function setOAuthConfig(userDoc, id, creds, server, cb) {
     ];
     for (var i=0; i < ops.length; i++) {
         var op = ops[i];
-        server.request({
-            method : "PUT",
-            db : "_config", doc : op[0], att : op[1], body : op[2]
-        }, function(err) {
+        coux.put([serverUrl, "_config", op[0], op[1]], op[2], function(err) {
             if (err) {
                 cb(err)
             } else {
@@ -164,12 +165,20 @@ function setOAuthConfig(userDoc, id, creds, server, cb) {
 }
 
 
-function applyOAuth(userDoc, id, creds) {
-    userDoc.oauth = userDoc.oauth || {
-        consumer_keys : {},
-        tokens : {},
-    };
-    userDoc.oauth.devices = userDoc.oauth.devices || {};
+function applyOAuth(u, id, creds) {
+    var userDoc = u;
+    if (!userDoc) {
+        userDoc = {};
+    }
+    if (!userDoc.oauth) {
+        userDoc.oauth = {
+            consumer_keys : {},
+            tokens : {}
+        };        
+    }
+    if (!userDoc.oauth['devices']) {
+        userDoc.oauth['devices'] =  {};
+    }
     if (userDoc.oauth.consumer_keys[creds.consumer_key] || userDoc.oauth.tokens[creds.token]) {
         throw({error : "token_used", message : "device_id "+id})
     }
