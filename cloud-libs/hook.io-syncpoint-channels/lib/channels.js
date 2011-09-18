@@ -50,19 +50,18 @@ Channels.prototype.setupControl = function(config){
                     // 412 means the db already exists
                     doc.state = "error "+err.code;
                     doc.error = "db_name exists: "+db_name;
-                    db.insert(doc, errLog);
+                    coux.put([controlDb, doc._id], doc, errLog())
                     errLog(err, resp);
                 } else {
                     // only set up creds the first time
-                    coux([db_name, "_security"],function(err, sec) {
+                    coux([serverUrl, db_name, "_security"],function(err, sec) {
                         if (err) {sec = {members:{names:[],roles:[]}}}
                         if (sec.members.names.indexOf(doc.owner) == -1) {
                             sec.members.names.push(doc.owner);
                             coux.put([db_name, "_security"], function(err, sec) {
                                 doc.state = "ready";
-                                doc.syncpoint = PUBLIC_HOST_URL + db_name;
-                                db.insert(doc, errLog);
-                                
+                                doc.syncpoint = serverUrl + '/' + db_name;
+                                coux.put([controlDb, doc._id], doc, errLog())
                             });
                         }
                             
@@ -71,13 +70,5 @@ Channels.prototype.setupControl = function(config){
                 }
             });
         }
-    });
-
-    control.safe("channel", "ready", function(doc) {
-        var channel_db = urlDb(doc.syncpoint);
-        channel_db.insert({
-            _id : 'description',
-            name : doc.name
-        }, errLog);
     });
 };

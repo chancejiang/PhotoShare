@@ -230,10 +230,6 @@ var Channels = function(opts) {
                 });
             });
         }));
-        // now, look at the real dbs, and check them off the list one by one
-        // any database without changes, we want to create subscriptions for right away
-        // connect to changes
-        // anytime a db is created or a subscription is updated, repeat
     };
     
 };
