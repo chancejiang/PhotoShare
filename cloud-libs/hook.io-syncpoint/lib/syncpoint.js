@@ -4,12 +4,13 @@
 // send confirmation emails and stuff
 //
 var Hook = require('hook.io').Hook,
-    util = require('util');
+    util = require('util'),
+    couch = require('hook.io-couch')
+    ;
 
 var SyncPoint = exports.SyncPoint = function(options){
-
   var self = this;
-
+  var config = JSON.parse(options.config);
   Hook.call(self, options);
 
   self.on('hook::ready', function(){
@@ -22,11 +23,14 @@ var SyncPoint = exports.SyncPoint = function(options){
         name : "control-db",
         type : "couch",
         debug : true,
-        'feed-db' : options.config.cloud,
-        'feed-since' : 0,
-        config : options.config
+        'feed-db' : config.cloud,
+        'feed-since' : 0
     }
-    self.spawn([registration, follow]);
+    self.spawn([registration, follow], function(e) {
+        if (e) {
+            console.log(e.message, e.stack)
+        }
+    });
   });
 
 };

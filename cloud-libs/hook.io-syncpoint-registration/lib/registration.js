@@ -10,11 +10,11 @@ var Hook = require('hook.io').Hook
     , errLog = require("errlog").errLog
     ;
 
-var Registration = exports.Registration = function(config){
-
+var Registration = exports.Registration = function(options){
     var self = this;
+    var config = JSON.parse(options.config);
 
-    Hook.call(self, config);
+    Hook.call(self, options);
 
     self.on('hook::ready', function(){
         console.log("starting new Registration hook for ", config.cloud);

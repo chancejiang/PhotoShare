@@ -10,7 +10,7 @@
 , "dependencies" : {
     "hook.io": "0.7.x",
     "hook.io-syncpoint-registration": "0.0.x",
-    "hook.io-syncpoint-channels": "0.0.x"
+    "hook.io-couch": "0.1.x"
 }
 , "main": "lib/syncpoint"
 }
