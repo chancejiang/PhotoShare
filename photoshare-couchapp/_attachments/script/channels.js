@@ -63,13 +63,14 @@ var Channels = function(opts) {
 
     function makeDesignDoc(designPath, cb) {
         var designDoc = {
-            // _id : "_design/channels",
             views : {
-                subscriptions : (function(doc) {
-                    if (doc.type == "subscription") {
-                        emit(doc.device_id, null)
-                    }
-                }).toString()
+                subscriptions : {
+                    map : function(doc) {
+                        if (doc.type == "subscription") {
+                            emit(doc.device_id, null)
+                        }
+                    }.toString()
+                }
             }
         };
         coux({type : "PUT", url : designPath}, designDoc, cb);
@@ -191,7 +192,7 @@ var Channels = function(opts) {
         console.log("syncSubscriptions")
         coux([deviceDb,"_design","channels-device","_view","subscriptions"], e(function(err, view) {
             var subs = {};
-            console.log(view.rows)
+            console.log("subs",view.rows)
             coux(["_all_dbs"], function(err, dbs) {
                 console.log(dbs)
             });
