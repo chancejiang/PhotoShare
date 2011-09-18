@@ -10,6 +10,10 @@ li span, li a {
   overflow:hidden;
 }
 
+.link {
+  text-align:right;
+}
+
 .type {
   font-weight: bold;  
   clear:left;

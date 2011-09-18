@@ -1,4 +1,4 @@
 {
-    "cloud" : "http://localhost:5984/photoshare-control-cloud",
+    "cloud" : "http://10.0.1.2:5984/photoshare-control-cloud",
     "device" : "photoshare-control-device"
 }

@@ -34,8 +34,7 @@ util.inherits(Registration, Hook);
 
 Registration.prototype.setupControl = function(config){
     var controlDb = config.cloud;
-    var self = this;
-    
+    var self = this;  
     var control = docstate.control(config.cloud)
     
     control.safe("confirm","clicked", function(doc) {

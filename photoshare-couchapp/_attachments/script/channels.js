@@ -46,8 +46,9 @@ var Channels = function(opts) {
             }));
         }));
     }
-
+    var deviceId;
     function haveDeviceId(device_id) {
+        deviceId = device_id;
         console.log("haveDeviceId")
         var designPath = [deviceDb, "_design", "channels-device"];
         coux(designPath, function(err, doc) {
@@ -96,8 +97,10 @@ var Channels = function(opts) {
     
 
     // why is this one turning into a controller?
+    var owner;
     function haveDeviceDoc(deviceDoc) {
         console.log("haveDeviceDoc")
+        owner = deviceDoc.owner;
         
         if (deviceDoc.state == "active") {
             console.log("deviceDoc.connected")
@@ -122,10 +125,9 @@ var Channels = function(opts) {
             }));
         }
     };
-
+    var owner;
     function makeDeviceDoc(device_id, email, cb) {
         console.log("makeDeviceDoc")
-        
         coux("/_uuids?count=4", e(function(err, resp) {
             var uuids = resp.uuids;
             var deviceDoc = {
@@ -191,10 +193,41 @@ var Channels = function(opts) {
         // first, build the map of databases we should have (based on a view)
         console.log("syncSubscriptions")
         coux([deviceDb,"_design","channels-device","_view","subscriptions"], e(function(err, view) {
-            var subs = {};
+            var local_dbs = view.rows.map(function(row) {return row.value});
             console.log("subs",view.rows)
+            
             coux(["_all_dbs"], function(err, dbs) {
-                console.log(dbs)
+                var needSubscriptions = dbs.filter(function(db) {
+                    return db !== deviceDb && db.indexOf("_") !== 0 && local_dbs.indexOf(db) == -1
+                })
+                coux('/_uuids?count='+needSubscriptions.length, function(err, data) {
+                    var subs = [], channels = [];
+                    var channels = needSubscriptions.map(function(db) {
+                        return {
+                            _id : data.uuids.pop(),
+                            owner : owner,
+                            name : db,
+                            type : "channel",
+                            state : "new"
+                        }
+                    });
+                    var subs = channels.map(function(ch) {
+                        return {
+                            _id : ch._id + "-sub-" + owner,
+                            device_id : deviceId,
+                            owner : owner,
+                            local_db :ch.name,
+                            channel_id : ch._id
+                        }
+                    });
+                    var bulk = channels.concat(subs);
+                    console.log("bulk", bulk)
+                    coux({type : "POST", url :[deviceDb,"_bulk_docs"]}, {docs:bulk}, function(err, ok) {
+                        if (!err) {
+                            console.log("made subscriptions")
+                        }
+                    });
+                });
             });
         }));
         // now, look at the real dbs, and check them off the list one by one
