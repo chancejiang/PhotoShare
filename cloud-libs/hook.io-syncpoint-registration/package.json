@@ -1,16 +1,15 @@
-{ "name": "hook.io-syncpoint"
+{ "name": "hook.io-syncpoint-registration"
 , "version": "0.0.1"
 , "author": { "name": "Chris Anderson"
             , "email": "jchris@couchbase.com" }
 , "description": "A hook.io hook that can get your Mobile Couchbase instance all swisha with backups and email and invites and stuff."
 , "homepage": "http://github.com/couchbaselabs"
 , "engines": [ "node" ]
-, "bin": {
-   "syncpoint": "./bin/syncpoint" }
 , "dependencies" : {
-    "hook.io": "0.7.x",
-    "hook.io-syncpoint-registration": "0.0.x",
-    "hook.io-syncpoint-channels": "0.0.x"
+     "hook.io": "0.7.x",
+     "docstate" : "0.0.x",
+     "coux" : "0.0.x",
+     "errlog" : "0.0.x"
 }
-, "main": "lib/syncpoint"
+, "main": "lib/registration"
 }

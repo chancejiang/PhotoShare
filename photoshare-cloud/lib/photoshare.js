@@ -20,7 +20,7 @@ var PhotoShare = exports.PhotoShare = function(options) {
           type : 'syncpoint',
           config : options.config
       }
-      self.spawn([syncPoint], function(){});
+      self.spawn([syncPoint]);
   });
 };
 
