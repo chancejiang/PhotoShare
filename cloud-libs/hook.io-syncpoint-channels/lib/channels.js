@@ -60,7 +60,7 @@ Channels.prototype.setupControl = function(config){
                         if (err) {sec = {members:{names:[],roles:[]}}}
                         if (sec.members.names.indexOf(doc.owner) == -1) {
                             sec.members.names.push(doc.owner);
-                            coux.put([db_name, "_security"], sec, function(err, sec) {
+                            coux.put([serverUrl, db_name, "_security"], sec, function(err, sec) {
                                 doc.state = "ready";
                                 doc.syncpoint = serverUrl + '/' + db_name;
                                 coux.put([controlDb, doc._id], doc, function(err, ok) {

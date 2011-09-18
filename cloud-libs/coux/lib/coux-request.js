@@ -7,7 +7,7 @@ var coux = exports.coux = function(opts, body) {
     if (typeof opts === 'string' || Array.isArray(opts)) { 
         opts = {url:opts};
     }
-    var cb = arguments[arguments.length -1];
+    var cb = arguments[arguments.length -1] || function() {console.log("empty callback", opts)};
     if (arguments.length == 3) {
         opts.body = JSON.stringify(body);
     }
@@ -53,10 +53,12 @@ var coux = exports.coux = function(opts, body) {
     });
 };
 
-coux.put = function(opts, body, cb) {
+coux.put = function() {
+    var opts = arguments[0];
     if (typeof opts === 'string' || Array.isArray(opts)) { 
         opts = {url:opts};
     }
     opts.method = "PUT";
-    coux(opts, body, cb);
+    arguments[0] = opts;
+    coux.apply(null, arguments);
 };
