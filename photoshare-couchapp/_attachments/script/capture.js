@@ -261,11 +261,12 @@ function startApp() {
 document.addEventListener("deviceready", startCamera, true);
 $('body').ready(startApp);
 
+var myChannels;
 function startControl() {
     coux([mydb, "_design", mydesign], function(err, doc) {
         var config = doc.config;
         // called by app to kick off Couchbase Channels
-        var myChannels = Channels({
+        myChannels = Channels({
             getEmail : setupEmailForm,
             waitForContinue : waitForContinue,
             connected : connected,
@@ -308,5 +309,14 @@ function setupEmailForm(cb) {
 function connected(err, doc) {
     console.log("connected")
     $('#status').show().find("strong").text(doc.owner);
+    $('#status form').submit(function() {
+        myChannels.listChannels(function(err, channels) {
+            console.log(channels);
+        });
+        $('#status ul').append('<li>hello</li>')
+        // get a list of all channels, 
+        // figure out which ones I'm already subscribed to
+        return false;
+    })
 }
 
