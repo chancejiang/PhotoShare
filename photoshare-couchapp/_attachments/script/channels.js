@@ -72,10 +72,11 @@ var Channels = function(opts) {
                 }).toString()
             }
         };
-        coux({type : "PUT", uri : designPath}, designDoc, cb);
+        coux({type : "PUT", url : designPath}, designDoc, cb);
     }
 
     function haveDesignDoc(device_id) {
+        console.log("haveDesignDoc")
         coux([deviceDb, device_id], function(err, doc) {
             if (err) { // no device doc
                 console.log("getEmail")

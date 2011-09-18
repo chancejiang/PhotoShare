@@ -10,8 +10,7 @@ function coux(opts, body) {
     }
     opts.url = opts.url || opts.uri;
     if ($.isArray(opts.url)) {
-        opts.url.unshift("");
-        opts.url = (opts.url.map(function(path) {
+        opts.url = ([""].concat(opts.url).map(function(path) {
             return encodeURIComponent(path);
         })).join('/');
     }
