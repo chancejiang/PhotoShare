@@ -271,8 +271,9 @@ function startControl() {
             waitForContinue : waitForContinue,
             connected : connected,
             downstreamFilter : "photoshare/thumbnail",
-            cloud : config.cloud,
-            device : config.device
+            "cloud-control" : config["cloud-control"],
+            "device-control" : config["device-control"],
+            "device-design" : config["device-design"]
         });
     });
 }

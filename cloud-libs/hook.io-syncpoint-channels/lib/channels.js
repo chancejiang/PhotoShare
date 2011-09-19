@@ -48,8 +48,8 @@ Channels.prototype.setupControl = function(config){
             coux.put([serverUrl, db_name], function(err, resp) {
                 if (err) {
                     // 412 means the db already exists
-                    doc.state = "error "+err.code;
-                    doc.error = "db_name exists: "+db_name;
+                    doc.state = "error";
+                    doc.error = err;
                     coux.put([cloudControl, doc._id], doc, function(err, ok) {
                         if (err) console.error(err);
                     })

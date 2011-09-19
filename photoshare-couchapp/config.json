@@ -1,6 +1,4 @@
 {
-    "xcloud" : "http://127.0.0.1:5984/photoshare-control-cloud",
-    "xdesign" : "http://127.0.0.1:5984/photoshare-design",
     "device-design" : "photoshare-design",
     "device-control" : "photoshare-control-device",
     "cloud-control" : "http//photoshare.ic.ht/photoshare-control-cloud" 

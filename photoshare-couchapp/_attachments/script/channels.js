@@ -15,7 +15,8 @@ function e(fun) {
 var Channels = function(opts) {
     console.log(opts)
     var deviceControl = opts['device-control'] || "device-control"
-        , cloudControl = opts['cloud-control'];
+        , cloudControl = opts['cloud-control']
+        , deviceDesign = opts['device-design'];
     
 
     if (!(opts.waitForContinue && opts.getEmail)) {
@@ -326,10 +327,16 @@ var Channels = function(opts) {
             var rep;
             if (rep = reps.pop()) {
                 coux.put([rep.local_db], e(function(err, ok) {
-                    rep.state = "ready";
-                    coux.put([deviceControl, rep._id], rep, e(function(err, ok) {
-                        makeDb(reps)                        
-                    }))
+                    // replicate from deviceDesign to db
+                    coux({type : "POST", uri : "/_replicate"}, {
+                        target : rep.local_db,
+                        source : deviceDesign
+                    }, e(function() {
+                        rep.state = "ready";
+                        coux.put([deviceControl, rep._id], rep, e(function(err, ok) {
+                            makeDb(reps)                        
+                        }));
+                    }));
                 }))
             } else {
                 cb()
