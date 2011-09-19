@@ -188,21 +188,44 @@ var Channels = function(opts) {
     function syncReplicas() {
         coux([deviceDb,"_design","channels-device","_view","replicas"
         , {startkey : [deviceId], endkey : [deviceId, {}]}], e(function(err, reps) {
+            var chid, repObj = {};
             var channel_ids = reps.rows.map(function(rep) {
-                return rep.key[1].split('-')[0];
+                chid =  rep.key[1].split('-')[0];
+                repObj[chid] = rep.value;
+                return chid;
             });
             coux.post([deviceDb,"_all_docs",{include_docs:true}],{keys:channel_ids}, e(function(err, chans) {
-                var rep_defs = chans.rows.forEach(function(ch) {
-                    var rep_for_chan = reps.rows.find(function(rep) {
-                        rep.key[1].split('-')[0] == ch.id;
-                    })
-                    console.log(rep_for_chan)
-                    return {
-                        source : "",
-                        target : ""
-                    }                    
-                })
-                console.log("config replications")
+                var rep_defs = chans.rows.map(function(ch) {
+                    var chid, replica_for_chan;
+                    for (chid in repObj) {
+                        if (chid == ch.id) {
+                            var remote = ch.doc.syncpoint
+                                , local = repObj[chid];
+                            return [{
+                                source : remote, // todo this should use deviceDoc.oauth creds
+                                target : local
+                            },{
+                                source : local,
+                                target : remote
+                            }];
+                        }
+                    }
+                });
+                rep_defs = rep_defs.reduce(function(prev, curr){  
+                  return prev.concat(curr);  
+                });
+                console.log("rep_defs", rep_defs)
+                function makeReps(rep_defs) {
+                    var repd;
+                    if (repd = rep_defs.pop()) {
+                        coux.post(["_replicate"], repd, e(function(err, ok) {
+                            makeReps(rep_defs)
+                        }))
+                    } else {
+                        console.log("bedone")
+                    }
+                }
+                makeReps(rep_defs)
             }));
         }));
     }
