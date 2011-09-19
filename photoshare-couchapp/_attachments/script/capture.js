@@ -311,10 +311,17 @@ function connected(err, doc) {
     $('#status').show().find("strong").text(doc.owner);
     $('#status form').submit(function(e) {
         e.preventDefault();
-        myChannels.listChannels(function(err, channels) {
-            console.log(channels);
+        var pparts = document.location.pathname.split('/');
+        myChannels.localizedChannels(function(err, channels) {
+            channels.forEach(function(c) {
+                var li = $('<li><a class="device"></a> by <span></span> (<a class="cloud">cloud</a>)</li>');
+                pparts[1] = encodeURIComponent(c.local_db);
+                li.find('.device').text(c.name).attr({href:pparts.join('/')});                
+                li.find('.cloud').attr({href:[c.syncpoint, pparts[2], pparts[3], pparts[4]].join('/')});
+                li.find('span').text(c.owner);
+                $('#status ul').append(li);
+            });
         });
-        $('#status ul').append('<li>hello</li>')
         // get a list of all channels, 
         // figure out which ones I'm already subscribed to
         return false;

@@ -11,6 +11,7 @@ function e(fun) {
     };
 };
 
+// todo move owner, localizedChannels, and deviceId to `this`
 var Channels = function(opts) {
     console.log(opts)
     var deviceDb = opts.device || "control";
@@ -127,7 +128,7 @@ var Channels = function(opts) {
             }));
         }
     };
-    var owner;
+
     function makeDeviceDoc(device_id, email, cb) {
         console.log("makeDeviceDoc")
         coux("/_uuids?count=4", e(function(err, resp) {
@@ -184,8 +185,7 @@ var Channels = function(opts) {
             }, cb)
         }));
     }
-
-    function syncReplicas() {
+    function syncReplicas(cb) {
         coux([deviceDb,"_design","channels-device","_view","replicas"
         , {startkey : [deviceId], endkey : [deviceId, {}]}], e(function(err, reps) {
             var chid, repObj = {};
@@ -195,12 +195,16 @@ var Channels = function(opts) {
                 return chid;
             });
             coux.post([deviceDb,"_all_docs",{include_docs:true}],{keys:channel_ids}, e(function(err, chans) {
+                var chan_w_local_links = [];
                 var rep_defs = chans.rows.map(function(ch) {
                     var chid, replica_for_chan;
                     for (chid in repObj) {
                         if (chid == ch.id) {
                             var remote = ch.doc.syncpoint
                                 , local = repObj[chid];
+                            ch.doc.local_db = local;
+                            delete ch.doc._rev;
+                            chan_w_local_links.push(ch.doc);
                             return [{
                                 source : remote, // todo this should use deviceDoc.oauth creds
                                 target : local
@@ -211,10 +215,10 @@ var Channels = function(opts) {
                         }
                     }
                 });
+                
                 rep_defs = rep_defs.reduce(function(prev, curr){  
                   return prev.concat(curr);  
                 });
-                console.log("rep_defs", rep_defs)
                 function makeReps(rep_defs) {
                     var repd;
                     if (repd = rep_defs.pop()) {
@@ -222,7 +226,7 @@ var Channels = function(opts) {
                             makeReps(rep_defs)
                         }))
                     } else {
-                        console.log("bedone")
+                        cb(chan_w_local_links)
                     }
                 }
                 makeReps(rep_defs)
@@ -232,6 +236,7 @@ var Channels = function(opts) {
     
 
     // here we connect to the state machine and do stuff in reaction to events on subscription documents or whatever...
+    var localizedChannels;
     function normalizeSubscriptions() {
         console.log("normalizeSubscriptions")
         subsWithoutReplicas(function(err, subs) {
@@ -240,7 +245,9 @@ var Channels = function(opts) {
                     makeDatabasesForReps(reps, function(err) {
                         databasesWithoutReplicas(function(err, dbs) {
                             setupChannels(dbs, function(err) {
-                                syncReplicas()
+                                syncReplicas(function(lchans) {
+                                    localizedChannels = lchans;
+                                });
                             })
                         })
                     })
@@ -376,5 +383,9 @@ var Channels = function(opts) {
         }
     }
     
-    
+    return {
+        localizedChannels : function(cb) {
+            cb(false, localizedChannels);
+        }
+    }
 };
