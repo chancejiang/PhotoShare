@@ -14,7 +14,9 @@ function e(fun) {
 // todo move owner, locChannels, and deviceId to `this`
 var Channels = function(opts) {
     console.log(opts)
-    var deviceDb = opts.device || "control";
+    var deviceControl = opts['device-control'] || "device-control"
+        , cloudControl = opts['cloud-control'];
+    
 
     if (!(opts.waitForContinue && opts.getEmail)) {
         throw("opts.waitForContinue && opts.getEmail are required")
@@ -24,8 +26,8 @@ var Channels = function(opts) {
     // entry point for device registration and sync / backup config
     function setupControl() {
         console.log("setupControl")
-        coux({type : "PUT", uri : [deviceDb]}, function() {
-            coux([deviceDb,"_local/device"], function(err, doc) {
+        coux({type : "PUT", uri : [deviceControl]}, function() {
+            coux([deviceControl,"_local/device"], function(err, doc) {
                 if (!err && doc.device_id) {
                     haveDeviceId(doc.device_id)
                 } else {
@@ -38,7 +40,7 @@ var Channels = function(opts) {
     function setDeviceId(cb) {
         console.log("setDeviceId")
         coux("/_uuids?count=1", e(function(err, resp) {
-            coux({type : "PUT", uri : [deviceDb,"_local/device"]}, {
+            coux({type : "PUT", uri : [deviceControl,"_local/device"]}, {
                 device_id : resp.uuids[0]
             }, e(function() {
                 cb(resp.uuids[0])
@@ -49,7 +51,7 @@ var Channels = function(opts) {
     function haveDeviceId(device_id) {
         deviceId = device_id;
         console.log("haveDeviceId")
-        var designPath = [deviceDb, "_design", "channels-device"];
+        var designPath = [deviceControl, "_design", "channels-device"];
         coux(designPath, function(err, doc) {
             if (err) { // no design doc
                 makeDesignDoc(designPath, e(function(err, ok) {
@@ -86,7 +88,7 @@ var Channels = function(opts) {
 
     function haveDesignDoc(device_id) {
         console.log("haveDesignDoc")
-        coux([deviceDb, device_id], function(err, doc) {
+        coux([deviceControl, device_id], function(err, doc) {
             if (err) { // no device doc
                 console.log("getEmail")
                 opts.getEmail(e(function(err, email, gotEmail) {
@@ -146,7 +148,7 @@ var Channels = function(opts) {
                   token: uuids[3]
                 }
             };
-            coux({type : "PUT", uri : [deviceDb,deviceDoc._id]}, deviceDoc, e(function(err, resp) {
+            coux({type : "PUT", uri : [deviceControl,deviceDoc._id]}, deviceDoc, e(function(err, resp) {
                 deviceDoc._rev = resp.rev;
                 cb(false, deviceDoc);
             }));
@@ -156,8 +158,8 @@ var Channels = function(opts) {
     function pushDeviceDoc() {
         console.log("pushDeviceDoc")
         coux({type : "POST", uri : "/_replicate"}, {
-            target : opts.cloud,
-            source : deviceDb
+            target : cloudControl,
+            source : deviceControl
         }, e());
     }
 
@@ -165,28 +167,28 @@ var Channels = function(opts) {
         console.log("syncControlDB");
         
         var syncPoint = {
-            url : opts.cloud,
+            url : cloudControl,
             auth: {
                 oauth: deviceDoc.oauth_creds
             }
         };
-        syncPoint = opts.cloud;
+        syncPoint = cloudControl;
         // todo this should be filtered so I don't get noise I don't care about
         coux({type : "POST", uri : "/_replicate"}, {
             source : syncPoint,
-            target : deviceDb,
+            target : deviceControl,
             continous : true
         }, e(function() {
             coux({type : "POST", uri : "/_replicate"}, {
                 target : syncPoint,
-                source : deviceDb,
+                source : deviceControl,
                 continuous : true
             }, cb)
         }));
     }
     function syncReplicas(cb) {
         console.log('syncReplicas')
-        coux([deviceDb,"_design","channels-device","_view","replicas"
+        coux([deviceControl,"_design","channels-device","_view","replicas"
         , {startkey : [deviceId], endkey : [deviceId, {}]}], e(function(err, reps) {
             var chid, repObj = {};
             var channel_ids = reps.rows.map(function(rep) {
@@ -194,7 +196,7 @@ var Channels = function(opts) {
                 repObj[chid] = rep.value;
                 return chid;
             });
-            coux.post([deviceDb,"_all_docs",{include_docs:true}],{keys:channel_ids}, e(function(err, chans) {
+            coux.post([deviceControl,"_all_docs",{include_docs:true}],{keys:channel_ids}, e(function(err, chans) {
                 var chan_w_local_links = [];
                 var rep_defs = chans.rows.map(function(ch) {
                     var chid, replica_for_chan;
@@ -267,9 +269,9 @@ var Channels = function(opts) {
         
     }
     function subsWithoutReplicas(cb) {
-        coux([deviceDb,"_design","channels-device","_view","subscriptions"
+        coux([deviceControl,"_design","channels-device","_view","subscriptions"
         , {key : owner}], e(function(err, subs) {
-            coux([deviceDb,"_design","channels-device","_view","replicas"
+            coux([deviceControl,"_design","channels-device","_view","replicas"
             , {startkey : [deviceId], endkey : [deviceId, {}]}], e(function(err, reps) {
                 var subIdsWithReplicas = reps.rows.map(function(rep) {
                     return rep.key[1];
@@ -295,14 +297,14 @@ var Channels = function(opts) {
                         subscription_id : sub.id
                     }
                 });
-                coux({type : "POST", url :[deviceDb,"_bulk_docs"]}, {docs:reps}, e(cb));
+                coux({type : "POST", url :[deviceControl,"_bulk_docs"]}, {docs:reps}, e(cb));
             });
         } else {
             cb()
         }
     }
     function replicasWithoutDatabases(cb) {
-        coux([deviceDb,"_design","channels-device","_view","replicas"
+        coux([deviceControl,"_design","channels-device","_view","replicas"
         , {startkey : [deviceId], endkey : [deviceId, {}], include_docs : true}], e(function(err, reps) {
             var local_rep_dbs = {};
             reps.rows.forEach(function(rep) {
@@ -325,7 +327,7 @@ var Channels = function(opts) {
             if (rep = reps.pop()) {
                 coux.put([rep.local_db], e(function(err, ok) {
                     rep.state = "ready";
-                    coux.put([deviceDb, rep._id], rep, e(function(err, ok) {
+                    coux.put([deviceControl, rep._id], rep, e(function(err, ok) {
                         makeDb(reps)                        
                     }))
                 }))
@@ -336,7 +338,7 @@ var Channels = function(opts) {
         makeDb(reps)
     }
     function databasesWithoutReplicas(cb) {
-        coux([deviceDb,"_design","channels-device","_view","replicas"
+        coux([deviceControl,"_design","channels-device","_view","replicas"
         , {startkey : [deviceId], endkey : [deviceId, {}]}], e(function(err, reps) {
             var local_rep_dbs = reps.rows.map(function(rep) {
                 return rep.value;
@@ -345,7 +347,7 @@ var Channels = function(opts) {
                 var db, needs_rep = [];
                 console.log('needs_rep?',dbs)
                 dbs.forEach(function(db) {
-                    if (db !== deviceDb && db.indexOf("_") !== 0 && local_rep_dbs.indexOf(db) == -1) {
+                    if (db !== deviceControl && db.indexOf("_") !== 0 && local_rep_dbs.indexOf(db) == -1) {
                         needs_rep.push(db)
                     }                    
                 });
@@ -388,7 +390,7 @@ var Channels = function(opts) {
                     }
                 });
                 var bulk = channels.concat(subs).concat(localReplicas);
-                coux({type : "POST", url :[deviceDb,"_bulk_docs"]}, {docs:bulk}, e(cb));
+                coux({type : "POST", url :[deviceControl,"_bulk_docs"]}, {docs:bulk}, e(cb));
             }));
         } else {
             cb()
@@ -406,13 +408,13 @@ var Channels = function(opts) {
             }
         },
         createChannel : function(name, cb) {
-            coux.post([deviceDb], {
+            coux.post([deviceControl], {
                 owner : owner,
                 name : name,
                 type : "channel",
                 state : "new"
             }, e(function(err, ok) {
-                coux.post([deviceDb], {
+                coux.post([deviceControl], {
                     _id : ok.id + "-sub-" + owner,
                     type : "subscription",
                     state : 'active',

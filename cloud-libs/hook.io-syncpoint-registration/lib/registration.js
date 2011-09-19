@@ -17,8 +17,8 @@ var Registration = exports.Registration = function(options){
     Hook.call(self, options);
 
     self.on('hook::ready', function(){
-        console.log("starting new Registration hook for ", config.cloud);
-        console.log("                     Device config ", config.device);
+        console.log("starting new Registration hook for ", config['cloud-control']);
+        console.log("                            Design ", config['cloud-design']);
 
         var control = self.setupControl(config);
         control.start();
@@ -33,16 +33,17 @@ var Registration = exports.Registration = function(options){
 util.inherits(Registration, Hook);
 
 Registration.prototype.setupControl = function(config){
-    var controlDb = config.cloud;
+    var cloudControl = config['cloud-control']
+        , cloudDesign = config['cloud-design'];
     var self = this;  
-    var control = docstate.control(config.cloud)
+    var control = docstate.control(cloudControl)
     
     control.safe("confirm","clicked", function(doc) {
         var confirm_code = doc.confirm_code;
         var device_code = doc.device_code;
         // load the device doc with confirm_code == code
         // TODO use a real view
-        coux([controlDb, "_all_docs", {include_docs : true}], errLog(function(err, view) {
+        coux([cloudControl, "_all_docs", {include_docs : true}], errLog(function(err, view) {
             var deviceDoc;
             view.rows.forEach(function(row) {
                if (row.doc.confirm_code && row.doc.confirm_code == confirm_code &&
@@ -53,14 +54,14 @@ Registration.prototype.setupControl = function(config){
             });
             if (deviceDoc) {
                 deviceDoc.state = "confirmed";
-                coux.put([controlDb, deviceDoc._id], deviceDoc, function(err, ok) {
+                coux.put([cloudControl, deviceDoc._id], deviceDoc, function(err, ok) {
                     doc.state = "used";
-                    coux.put([controlDb, doc._id], doc, errLog);
+                    coux.put([cloudControl, doc._id], doc, errLog);
                 });
             } else {
                 doc.state = "error";
                 doc.error = "no matching device";
-                coux.put([controlDb, doc._id], doc, errLog);
+                coux.put([cloudControl, doc._id], doc, errLog);
             }
         }));
     });
@@ -69,7 +70,7 @@ Registration.prototype.setupControl = function(config){
         // now we need to ensure the user exists and make sure the device has a delegate on it
         // move device_creds to user document, now the device can use them to auth as the user
         
-        var d = controlDb.split('/');
+        var d = cloudControl.split('/');
         d.pop();
         var serverUrl = d.join('/');
         
@@ -86,7 +87,7 @@ Registration.prototype.setupControl = function(config){
                   setOAuthConfig(userDoc, deviceDoc._id, deviceDoc.oauth_creds, serverUrl, function(err) {
                     if (!err) {
                         deviceDoc.state = "active";
-                        coux.put([controlDb, deviceDoc._id], deviceDoc, errLog);          
+                        coux.put([cloudControl, deviceDoc._id], deviceDoc, errLog);          
                     }
                 });
               }
@@ -96,14 +97,14 @@ Registration.prototype.setupControl = function(config){
 
     control.unsafe("device", "new", function(doc) {
       var confirm_code = Math.random().toString().split('.').pop(); // todo better entropy
-      var link = config.cloud + "/_design/channels/verify.html#" + confirm_code;
+      var link = cloudControl + "/_design/channels/verify.html#" + confirm_code;
       sendEmail(self, doc.owner, confirm_code, function(err) {
         if (err) {
           errLog(err)
         } else {
           doc.state = "confirming";
           doc.confirm_code = confirm_code;
-          coux.put([controlDb, doc._id], doc, errLog);          
+          coux.put([cloudControl, doc._id], doc, errLog);          
         }
       });
     });

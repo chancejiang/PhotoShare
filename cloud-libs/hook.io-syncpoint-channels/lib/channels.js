@@ -32,12 +32,13 @@ var Channels = exports.Channels = function(options){
 util.inherits(Channels, Hook);
 
 Channels.prototype.setupControl = function(config){
-    var controlDb = config.cloud
-    , d = controlDb.split('/');
+    var cloudControl = config['cloud-control']
+        , cloudDesign = config['cloud-design']
+        , d = cloudControl.split('/');
     d.pop();
     var serverUrl = d.join('/');
     var self = this;  
-    var control = docstate.control(config.cloud)
+    var control = docstate.control(cloudControl)
 
     control.safe("channel", "new", function(doc) {
         var db_name = "db-"+doc._id;
@@ -49,7 +50,7 @@ Channels.prototype.setupControl = function(config){
                     // 412 means the db already exists
                     doc.state = "error "+err.code;
                     doc.error = "db_name exists: "+db_name;
-                    coux.put([controlDb, doc._id], doc, function(err, ok) {
+                    coux.put([cloudControl, doc._id], doc, function(err, ok) {
                         if (err) console.error(err);
                     })
                     console.log(err, resp);
@@ -62,12 +63,12 @@ Channels.prototype.setupControl = function(config){
                             coux.put([serverUrl, db_name, "_security"], sec, e(function(err, sec) {
                                 // replicate the design docs to the new db
                                 coux.post([serverUrl, "_replicate"], {
-                                    source : config.design,
+                                    source : cloudDesign,
                                     target : db_name
                                 }, e(function(err, ok) {
                                     doc.state = "ready";
                                     doc.syncpoint = serverUrl + '/' + db_name;
-                                    coux.put([controlDb, doc._id], doc, function(err, ok) {
+                                    coux.put([cloudControl, doc._id], doc, function(err, ok) {
                                         if (err) console.error(err);
                                     })
                                 }))
