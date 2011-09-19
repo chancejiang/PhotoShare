@@ -309,7 +309,8 @@ function setupEmailForm(cb) {
 function connected(err, doc) {
     console.log("connected")
     $('#status').show().find("strong").text(doc.owner);
-    $('#status form').submit(function() {
+    $('#status form').submit(function(e) {
+        e.preventDefault();
         myChannels.listChannels(function(err, channels) {
             console.log(channels);
         });

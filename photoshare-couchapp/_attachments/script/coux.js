@@ -20,7 +20,7 @@ function coux(opts, body) {
                 }
                 query.push(encodeURIComponent(k)+'='+encodeURIComponent(v));
             }
-            query.join('&');
+            query = query.join('&');
         }
         opts.url = ([""].concat(opts.url).map(function(path) {
             return encodeURIComponent(path);
@@ -49,3 +49,24 @@ function coux(opts, body) {
     $.ajax(req);
 };
 
+
+coux.put = function() {
+    var opts = arguments[0];
+    if (typeof opts === 'string' || Array.isArray(opts)) { 
+        opts = {url:opts};
+    }
+    opts.type = "PUT";
+    arguments[0] = opts;
+    coux.apply(this, arguments);
+};
+
+
+coux.post = function() {
+    var opts = arguments[0];
+    if (typeof opts === 'string' || Array.isArray(opts)) { 
+        opts = {url:opts};
+    }
+    opts.type = "POST";
+    arguments[0] = opts;
+    coux.apply(this, arguments);
+};

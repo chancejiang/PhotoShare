@@ -6,7 +6,7 @@ function e(fun) {
         if (err) {
             console.log(err)
         } else {
-            fun && fun.apply(null, arguments)
+            fun && fun.apply(this, arguments)
         }
     };
 };
@@ -36,13 +36,11 @@ var Channels = function(opts) {
 
     function setDeviceId(cb) {
         console.log("setDeviceId")
-        
         coux("/_uuids?count=1", e(function(err, resp) {
-            var uuids = resp.uuids;
             coux({type : "PUT", uri : [deviceDb,"_local/device"]}, {
-                device_id : uuids[0]
-            }, e(function(err, resp) {
-                cb(uuids[0])
+                device_id : resp.uuids[0]
+            }, e(function() {
+                cb(resp.uuids[0])
             }));
         }));
     }
@@ -62,13 +60,21 @@ var Channels = function(opts) {
         });
     }
 
+    // VIEW DEFINITIONS ARE HERE
     function makeDesignDoc(designPath, cb) {
         var designDoc = {
             views : {
                 subscriptions : {
                     map : function(doc) {
                         if (doc.type == "subscription") {
-                            emit(doc.device_id, doc.local_db)
+                            emit(doc.owner, doc.channel_name)
+                        }
+                    }.toString()
+                },
+                replicas : {
+                    map : function(doc) {
+                        if (doc.type == "replica") {
+                            emit([doc.device_id, doc.subscription_id], doc.local_db)
                         }
                     }.toString()
                 }
@@ -103,15 +109,15 @@ var Channels = function(opts) {
         owner = deviceDoc.owner;
         
         if (deviceDoc.state == "active") {
-            console.log("deviceDoc.connected")
-            updateSubscriptionDefs();
+            console.log("deviceDoc active")
+            normalizeSubscriptions();
             syncControlDB(deviceDoc, e(function() {
                 opts.connected(false, deviceDoc);
             }));
         } else {
             pushDeviceDoc();
             opts.waitForContinue(deviceDoc, e(function(err, closeContinue) {
-                updateSubscriptionDefs();
+                normalizeSubscriptions();
                 syncControlDB(deviceDoc, e(function(err, resp) {
                     if (!err) {
                         closeContinue();
@@ -179,74 +185,172 @@ var Channels = function(opts) {
         }));
     }
 
-    // here we connect to the state machine and do stuff in reaction to events on subscription documents or whatever...
-    function updateSubscriptionDefs() {
-        console.log("updateSubscriptionDefs")
-        // now it is time to configure all subscription replications
-        // what about databases without subscriptions?
-        // (eg: My Photos) Do we have a generic approach to all renegade new database
-        // creation on the client or do we expect to be the sole manager of database
-        // state?
-        // first, build the map of databases we should have (based on a view)
-        coux([deviceDb,"_design","channels-device","_view","subscriptions", {key : deviceId}], e(function(err, view) {
-            var local_db_subs = view.rows.map(function(row) {return row.value});
-            console.log("local_db_subs",local_db_subs)
-            
-            coux(["_all_dbs"], function(err, dbs) {
-                var needSubscriptions = dbs.filter(function(db) {
-                    return db !== deviceDb && db.indexOf("_") !== 0 && local_db_subs.indexOf(db) == -1
+    function syncReplicas() {
+        coux([deviceDb,"_design","channels-device","_view","replicas"
+        , {startkey : [deviceId], endkey : [deviceId, {}]}], e(function(err, reps) {
+            var channel_ids = reps.rows.map(function(rep) {
+                return rep.key[1].split('-')[0];
+            });
+            coux.post([deviceDb,"_all_docs",{include_docs:true}],{keys:channel_ids}, e(function(err, chans) {
+                var rep_defs = chans.rows.forEach(function(ch) {
+                    var rep_for_chan = reps.rows.find(function(rep) {
+                        rep.key[1].split('-')[0] == ch.id;
+                    })
+                    console.log(rep_for_chan)
+                    return {
+                        source : "",
+                        target : ""
+                    }                    
                 })
-                console.log(needSubscriptions)
-                coux('/_uuids?count='+needSubscriptions.length, function(err, data) {
-                    var subs = [], channels = [];
-                    var channels = needSubscriptions.map(function(db) {
-                        return {
-                            _id : data.uuids.pop(),
-                            owner : owner,
-                            name : db,
-                            type : "channel",
-                            state : "new"
-                        }
-                    });
-                    var subs = channels.map(function(ch) {
-                        return {
-                            _id : ch._id + "-sub-" + owner,
-                            type : "subscription",
-                            state : 'active', // active subscriptions are ready to sync
-                            // device_id : deviceId, // subs should span devices...
-                            owner : owner,
-                            channel_name :ch.name,
-                            channel_id : ch._id
-                        }
-                    });
-                    var localReplicas = subs.map(function(s) {
-                        return {
-                            type : "replica",
-                            state : "ready",
-                            device_id : deviceId,
-                            local_db : s.channel_name,
-                            subscription_id : s._id
-                        }
-                    });
-                    var bulk = channels.concat(subs).concat(localReplicas);
-                    console.log("bulk", bulk)
-                    if (bulk.length > 0) {
-                        coux({type : "POST", url :[deviceDb,"_bulk_docs"]}, {docs:bulk}, function(err, ok) {
-                            if (!err) {
-                                console.log("made subscriptions")
-                                 syncSubscribedDBs()
-                            }
-                        });
-                    } else {
-                         syncSubscribedDBs()
-                    }
+                console.log("config replications")
+            }));
+        }));
+    }
+    
 
+    // here we connect to the state machine and do stuff in reaction to events on subscription documents or whatever...
+    function normalizeSubscriptions() {
+        console.log("normalizeSubscriptions")
+        subsWithoutReplicas(function(err, subs) {
+            makeReplicas(subs, function(err) {
+                replicasWithoutDatabases(function(err, reps) {
+                    makeDatabasesForReps(reps, function(err) {
+                        databasesWithoutReplicas(function(err, dbs) {
+                            setupChannels(dbs, function(err) {
+                                syncReplicas()
+                            })
+                        })
+                    })
                 });
             });
+        });
+        
+    }
+    function subsWithoutReplicas(cb) {
+        coux([deviceDb,"_design","channels-device","_view","subscriptions"
+        , {key : owner}], e(function(err, subs) {
+            coux([deviceDb,"_design","channels-device","_view","replicas"
+            , {startkey : [deviceId], endkey : [deviceId, {}]}], e(function(err, reps) {
+                var subIdsWithReplicas = reps.rows.map(function(rep) {
+                    return rep.key[1];
+                });
+                var subsNewOnThisDevice = subs.rows.filter(function(sub) {
+                    return (subIdsWithReplicas.indexOf(sub.id) == -1)
+                });
+                cb(false, subsNewOnThisDevice);
+            }));
         }));
-    };
-    function syncSubscribedDBs() {
-        console.log("syncSubscribedDBs")
+    }
+    function makeReplicas(subs, cb) {
+        if (subs.length > 0) {
+            coux('/_uuids?count='+subs.length, function(err, data) {
+                var reps = subs.map(function(sub) {
+                    return {
+                        type : "replica",
+                        state : "new",
+                        device_id : deviceId,
+                        local_db : data.uuids.pop(),
+                        subscription_id : s._id
+                    }
+                });
+                coux({type : "POST", url :[deviceDb,"_bulk_docs"]}, {docs:reps}, e(cb));
+            });
+        } else {
+            cb()
+        }
+    }
+    function replicasWithoutDatabases(cb) {
+        coux([deviceDb,"_design","channels-device","_view","replicas"
+        , {startkey : [deviceId], endkey : [deviceId, {}], include_docs : true}], e(function(err, reps) {
+            var local_rep_dbs = {};
+            reps.rows.forEach(function(rep) {
+                local_rep_dbs[rep.doc.local_db] = rep.doc;
+            });
+            coux('/_all_dbs', e(function(err, dbs) {
+                var db_name, needs_db = [];
+                for (db_name in local_rep_dbs) {
+                    if (dbs.indexOf(db_name) == -1) {
+                        needs_db.push(local_rep_dbs[db_name])
+                    }
+                }
+                cb(false, needs_db)
+            }))
+        }))
+    }
+    function makeDatabasesForReps(reps, cb) {
+        function makeDb(reps) {
+            var rep;
+            if (rep = reps.pop()) {
+                coux.put([rep.local_db], e(function(err, ok) {
+                    rep.state = "ready";
+                    coux.put([deviceDb, rep._id], rep, e(function(err, ok) {
+                        makeDb(reps)                        
+                    }))
+                }))
+            } else {
+                cb()
+            }
+        }
+        makeDb(reps)
+    }
+    function databasesWithoutReplicas(cb) {
+        coux([deviceDb,"_design","channels-device","_view","replicas"
+        , {startkey : [deviceId], endkey : [deviceId, {}]}], e(function(err, reps) {
+            var local_rep_dbs = reps.rows.map(function(rep) {
+                return rep.value;
+            });
+            coux('/_all_dbs', e(function(err, dbs) {
+                var db, needs_rep = [];
+                console.log('needs_rep?',dbs)
+                dbs.forEach(function(db) {
+                    if (db !== deviceDb && db.indexOf("_") !== 0 && local_rep_dbs.indexOf(db) == -1) {
+                        needs_rep.push(db)
+                    }                    
+                });
+                cb(false, needs_rep)
+            }))
+        }))
+    }
+    // setup any local dbs which are not replicated on the server yet
+    function setupChannels(dbs, cb) {
+        console.log("setupChannels for dbs", dbs)
+        if (dbs.length > 0) {
+            coux('/_uuids?count='+dbs.length, e(function(err, data) {
+                var channels = dbs.map(function(db) {
+                    return {
+                        _id : data.uuids.pop(),
+                        owner : owner,
+                        name : db,
+                        type : "channel",
+                        state : "new"
+                    }
+                });
+                var subs = channels.map(function(ch) {
+                    return {
+                        _id : ch._id + "-sub-" + owner,
+                        type : "subscription",
+                        state : 'active',
+                        owner : owner,
+                        channel_name :ch.name,
+                        channel_id : ch._id
+                    }
+                });
+                var localReplicas = subs.map(function(s) {
+                    return {
+                        type : "replica",
+                        state : "ready",
+                        device_id : deviceId,
+                        // in this case we know channel_name is a legal Couch database name
+                        local_db : s.channel_name,
+                        subscription_id : s._id
+                    }
+                });
+                var bulk = channels.concat(subs).concat(localReplicas);
+                coux({type : "POST", url :[deviceDb,"_bulk_docs"]}, {docs:bulk}, e(cb));
+            }));
+        } else {
+            cb()
+        }
     }
     
     
