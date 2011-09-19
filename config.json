@@ -1,9 +1,0 @@
-{
-    "cloud" : "http://127.0.0.1:5984/photoshare-control-cloud",
-    "device" : "photoshare-control-device",
-    "feed-db": "http://127.0.0.1:5984/photoshare-control-cloud",
-    "feed-since": "now",
-    "feed-heartbeat": 3000,
-    "feed-inactivity": 8640000,
-    "feed-include-docs" : true
-}
