@@ -64,7 +64,10 @@ var SyncPoint = exports.SyncPoint = function(options){
             type : "couch",
             debug : true,
             'feed-db' : cloudControl,
-            'feed-since' : 0
+            'feed-since' : 0,
+            'feed-heartbeat' : 30000,
+            'feed-inactivity' : null,
+            "feed-include-docs" : true
         }
         self.spawn([registration], function(e) {
             if (e) {

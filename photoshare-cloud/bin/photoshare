@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 var fs = require("fs")
-    , config = fs.readFileSync('photoshare-cloud/config.json')
+    , config = fs.readFileSync('photoshare-cloud/config.json').toString()
     , PhotoShare = require('../lib/photoshare.js').PhotoShare;
 
 var photoshare = new PhotoShare({

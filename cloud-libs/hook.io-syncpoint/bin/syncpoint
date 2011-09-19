@@ -2,6 +2,6 @@
 
 var SyncPoint = require('../lib/syncpoint').SyncPoint
 
-var sync = new SyncPoint(config);
+var sync = new SyncPoint();
 sync.start();
 

@@ -17,7 +17,7 @@ var Channels = exports.Channels = function(options){
     Hook.call(self, options);
 
     self.on('hook::ready', function(){
-        console.log("starting new Channel hook for ", config.cloud);
+        console.log("starting new Channel hook for ", config['cloud-control']);
 
         var control = self.setupControl(config);
         control.start();
