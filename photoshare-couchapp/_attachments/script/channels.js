@@ -229,8 +229,8 @@ var Channels = function(opts) {
                     if (repd = rep_defs.pop()) {
                         console.log(repd)
                         coux.post(["_replicate"], repd, e(function(err, ok) {
-                            makeReps(rep_defs)
                         }))
+                        makeReps(rep_defs)
                     } else {
                         cb(chan_w_local_links)
                     }
@@ -286,7 +286,7 @@ var Channels = function(opts) {
                         state : "new",
                         device_id : deviceId,
                         local_db : 'db-'+data.uuids.pop(),
-                        subscription_id : sub._id
+                        subscription_id : sub.id
                     }
                 });
                 coux({type : "POST", url :[deviceDb,"_bulk_docs"]}, {docs:reps}, e(cb));
