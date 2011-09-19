@@ -1,7 +1,7 @@
 function(doc, req) {
-  if(doc.type == "thumbnail") {
-    return true;
-  } else {
+  if(doc.type == "photo") {
     return false;
+  } else {
+    return true;
   }
 }

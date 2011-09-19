@@ -10,3 +10,16 @@ exports.errLog = function errLog(cb) {
         }
     };
 };
+
+exports.e = function(fun) {
+    return function(err) {
+        if (err) {
+            console.log("error:".red, err);
+            if (err.stack) {
+                console.log(err.stack);
+            }
+        } else {
+            fun && fun.apply(this, arguments)
+        }
+    };
+};

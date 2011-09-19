@@ -33,7 +33,9 @@ var coux = exports.coux = function(opts, body) {
     }
     var req = {
         method: 'GET',
-        contentType: 'application/json'
+        headers : {
+            'content-type': 'application/json'            
+        }
     };
     for (var x in opts) {
         if (opts.hasOwnProperty(x)){
@@ -41,7 +43,7 @@ var coux = exports.coux = function(opts, body) {
         }
     }
     console.log(req.method, req.url);
-    request(opts, function(err, resp, body) {
+    request(req, function(err, resp, body) {
         if (err) {
             cb(err, resp, body)
         } else if (resp.statusCode >= 400) {
@@ -67,6 +69,16 @@ coux.put = function() {
         opts = {url:opts};
     }
     opts.method = "PUT";
+    arguments[0] = opts;
+    coux.apply(null, arguments);
+};
+
+coux.post = function() {
+    var opts = arguments[0];
+    if (typeof opts === 'string' || Array.isArray(opts)) { 
+        opts = {url:opts};
+    }
+    opts.method = "POST";
     arguments[0] = opts;
     coux.apply(null, arguments);
 };

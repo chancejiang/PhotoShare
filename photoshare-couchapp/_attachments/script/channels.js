@@ -157,8 +157,7 @@ var Channels = function(opts) {
         console.log("pushDeviceDoc")
         coux({type : "POST", uri : "/_replicate"}, {
             target : opts.cloud,
-            source : deviceDb,
-            continous : true
+            source : deviceDb
         }, e());
     }
 
@@ -181,11 +180,12 @@ var Channels = function(opts) {
             coux({type : "POST", uri : "/_replicate"}, {
                 target : syncPoint,
                 source : deviceDb,
-                continous : true
+                continuous : true
             }, cb)
         }));
     }
     function syncReplicas(cb) {
+        console.log('syncReplicas')
         coux([deviceDb,"_design","channels-device","_view","replicas"
         , {startkey : [deviceId], endkey : [deviceId, {}]}], e(function(err, reps) {
             var chid, repObj = {};
@@ -199,38 +199,42 @@ var Channels = function(opts) {
                 var rep_defs = chans.rows.map(function(ch) {
                     var chid, replica_for_chan;
                     for (chid in repObj) {
-                        if (chid == ch.id) {
+                        if (ch.doc && chid == ch.id) {
                             var remote = ch.doc.syncpoint
                                 , local = repObj[chid];
-                            ch.doc.local_db = local;
-                            delete ch.doc._rev;
-                            chan_w_local_links.push(ch.doc);
-                            var defs =  [{
-                                source : remote, // todo this should use deviceDoc.oauth creds
-                                target : local,
-                                continuous : true
-                            },{
-                                source : local,
-                                target : remote,
-                                continuous : true
-                            }];
-                            if (opts.downstreamFilter) {
-                                defs[0].filter = opts.downstreamFilter;
+                            if (local && remote) {
+                                ch.doc.local_db = local;
+                                delete ch.doc._rev;
+                                chan_w_local_links.push(ch.doc);
+                                var defs =  [{
+                                    source : remote, // todo this should use deviceDoc.oauth creds
+                                    target : local,
+                                    continuous : true
+                                },{
+                                    source : local,
+                                    target : remote,
+                                    continuous : true
+                                }];
+                                if (opts.downstreamFilter) {
+                                    defs[0].filter = opts.downstreamFilter;
+                                }
+                                return defs;
                             }
-                            return defs;
                         }
                     }
                 });
                 rep_defs = rep_defs.reduce(function(prev, curr){  
                   return prev.concat(curr);  
-                });
+                }).filter(function(r) {return r});
                 function makeReps(rep_defs) {
                     var repd;
                     if (repd = rep_defs.pop()) {
-                        console.log(repd)
+                        console.log("repd",repd)
                         coux.post(["_replicate"], repd, e(function(err, ok) {
                         }))
-                        makeReps(rep_defs)
+                        setTimeout(function() {
+                            makeReps(rep_defs)                                
+                        },100);
                     } else {
                         cb(chan_w_local_links)
                     }
@@ -270,9 +274,11 @@ var Channels = function(opts) {
                 var subIdsWithReplicas = reps.rows.map(function(rep) {
                     return rep.key[1];
                 });
+                console.log(subs)
                 var subsNewOnThisDevice = subs.rows.filter(function(sub) {
                     return (subIdsWithReplicas.indexOf(sub.id) == -1)
                 });
+                console.log('subsNewOnThisDevice', subsNewOnThisDevice)
                 cb(false, subsNewOnThisDevice);
             }));
         }));
@@ -407,7 +413,7 @@ var Channels = function(opts) {
                 state : "new"
             }, e(function(err, ok) {
                 coux.post([deviceDb], {
-                    _id : ok._id + "-sub-" + owner,
+                    _id : ok.id + "-sub-" + owner,
                     type : "subscription",
                     state : 'active',
                     owner : owner,

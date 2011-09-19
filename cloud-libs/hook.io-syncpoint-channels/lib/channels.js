@@ -7,7 +7,7 @@ var Hook = require('hook.io').Hook
     , util = require('util')
     , docstate = require("docstate")
     , coux = require("coux").coux
-    , errLog = require("errlog").errLog
+    , e = require("errlog").e
     ;
 
 var Channels = exports.Channels = function(options){
@@ -59,13 +59,19 @@ Channels.prototype.setupControl = function(config){
                         if (err) {sec = {members:{names:[],roles:[]}}}
                         if (sec.members.names.indexOf(doc.owner) == -1) {
                             sec.members.names.push(doc.owner);
-                            coux.put([serverUrl, db_name, "_security"], sec, function(err, sec) {
-                                doc.state = "ready";
-                                doc.syncpoint = serverUrl + '/' + db_name;
-                                coux.put([controlDb, doc._id], doc, function(err, ok) {
-                                    if (err) console.error(err);
-                                })
-                            });
+                            coux.put([serverUrl, db_name, "_security"], sec, e(function(err, sec) {
+                                // replicate the design docs to the new db
+                                coux.post([serverUrl, "_replicate"], {
+                                    source : config.design,
+                                    target : db_name
+                                }, e(function(err, ok) {
+                                    doc.state = "ready";
+                                    doc.syncpoint = serverUrl + '/' + db_name;
+                                    coux.put([controlDb, doc._id], doc, function(err, ok) {
+                                        if (err) console.error(err);
+                                    })
+                                }))
+                            }));
                         }
                             
                     });
