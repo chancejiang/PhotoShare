@@ -11,7 +11,7 @@ function e(fun) {
     };
 };
 
-// todo move owner, localizedChannels, and deviceId to `this`
+// todo move owner, locChannels, and deviceId to `this`
 var Channels = function(opts) {
     console.log(opts)
     var deviceDb = opts.device || "control";
@@ -205,23 +205,29 @@ var Channels = function(opts) {
                             ch.doc.local_db = local;
                             delete ch.doc._rev;
                             chan_w_local_links.push(ch.doc);
-                            return [{
+                            var defs =  [{
                                 source : remote, // todo this should use deviceDoc.oauth creds
-                                target : local
+                                target : local,
+                                continuous : true
                             },{
                                 source : local,
-                                target : remote
+                                target : remote,
+                                continuous : true
                             }];
+                            if (opts.downstreamFilter) {
+                                defs[0].filter = opts.downstreamFilter;
+                            }
+                            return defs;
                         }
                     }
                 });
-                
                 rep_defs = rep_defs.reduce(function(prev, curr){  
                   return prev.concat(curr);  
                 });
                 function makeReps(rep_defs) {
                     var repd;
                     if (repd = rep_defs.pop()) {
+                        console.log(repd)
                         coux.post(["_replicate"], repd, e(function(err, ok) {
                             makeReps(rep_defs)
                         }))
@@ -236,7 +242,7 @@ var Channels = function(opts) {
     
 
     // here we connect to the state machine and do stuff in reaction to events on subscription documents or whatever...
-    var localizedChannels;
+    var locChannels;
     function normalizeSubscriptions() {
         console.log("normalizeSubscriptions")
         subsWithoutReplicas(function(err, subs) {
@@ -246,7 +252,7 @@ var Channels = function(opts) {
                         databasesWithoutReplicas(function(err, dbs) {
                             setupChannels(dbs, function(err) {
                                 syncReplicas(function(lchans) {
-                                    localizedChannels = lchans;
+                                    locChannels = lchans;
                                 });
                             })
                         })
@@ -279,8 +285,8 @@ var Channels = function(opts) {
                         type : "replica",
                         state : "new",
                         device_id : deviceId,
-                        local_db : data.uuids.pop(),
-                        subscription_id : s._id
+                        local_db : 'db-'+data.uuids.pop(),
+                        subscription_id : sub._id
                     }
                 });
                 coux({type : "POST", url :[deviceDb,"_bulk_docs"]}, {docs:reps}, e(cb));
@@ -383,9 +389,33 @@ var Channels = function(opts) {
         }
     }
     
-    return {
+    var exports = {
         localizedChannels : function(cb) {
-            cb(false, localizedChannels);
+            if (locChannels) {
+                cb(false, locChannels);                
+            } else {
+                setTimeout(function() {
+                    exports.localizedChannels(cb)
+                }, 100);
+            }
+        },
+        createChannel : function(name, cb) {
+            coux.post([deviceDb], {
+                owner : owner,
+                name : name,
+                type : "channel",
+                state : "new"
+            }, e(function(err, ok) {
+                coux.post([deviceDb], {
+                    _id : ok._id + "-sub-" + owner,
+                    type : "subscription",
+                    state : 'active',
+                    owner : owner,
+                    channel_name :name,
+                    channel_id : ok._id
+                }, cb);
+            }));
         }
     }
+    return exports;
 };
