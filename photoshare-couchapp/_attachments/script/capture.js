@@ -7,24 +7,12 @@ var mypath = document.location.pathname.split('/')
     mydb = mypath[1];
     mydesign = mypath[3];
 
+console.log("mydb")
+console.log(mydb)
 // prompt = console.log
 
 // Helper Methods
 
-function addThumbnail(thumbnailId, originalId) {
-    var newImg = $("<img></img>")
-                 .addClass('thumbnail')
-                 .css('float', 'left')
-                 .css('padding', '2px')
-                 .error(function() {
-                   $(this).hide();
-                 })
-                 .attr({id: originalId,
-                        src: '/photoshare/'+thumbnailId+'/thumbnail.jpg'
-                       });
-    newImg.click(onImageClick);
-    $('#pictures').prepend(newImg);
-}
 
 function addComment(commentDoc) {
   $('#comments').prepend('<span>'+commentDoc.comment+'</span><br/>')
@@ -49,34 +37,6 @@ function setMessage(message) {
   $('#message').html(message);
 }
 
-// Syncpoint
-
-function setupSync() {
-    // var syncpoint = "http://couchbase.ic.ht/photoshare";
-    // should be controlled by Channels
-    $.ajax({
-      type: 'POST',
-      url: '/_replicate',
-      data: JSON.stringify({
-          source : syncpoint,
-          target : mydb,
-          filter : "photoshare/thumbnail"
-      }),
-      dataType: 'json',
-      contentType: 'application/json'
-    });
-    $.ajax({
-      type: 'POST',
-      url: '/_replicate',
-      data: JSON.stringify({
-          target : syncpoint,
-          source : mydb
-      }),
-      dataType: 'json',
-      contentType: 'application/json'
-    });
-}
-
 // Capture
 
 function onCaptureSuccess(imageData) {
@@ -99,7 +59,7 @@ function onCaptureSuccess(imageData) {
   }};
   $.ajax({
     type: 'POST',
-    url: '/photoshare',
+    url: '/'+mydb,
     data: JSON.stringify(imageDoc),
     dataType: 'json',
     contentType: 'application/json',
@@ -140,13 +100,49 @@ function connectChanges(dbname, onDBChange) {
 };
 
 
-function listPictures(data) {
-    for (var i = 0; i < data.results.length; i++) {
-        if(!data.results[i].deleted && data.results[i].doc.original_id) {
-            addThumbnail(data.results[i].id, data.results[i].doc.original_id);
-        }
-    }
+function listPictures() {
+    console.log("listPictures")
+    coux('_view/allpics', function(err, view) {
+        $('#pictures').empty()
+        var row, nowKey, choice, choices = [];
+        for (var i=0; i < view.rows.length; i++) {
+            row = view.rows[i];
+            if (nowKey && nowKey != row.key) {
+                choice = choices[choices.length-1]
+                listPic(choice)
+                choices = [row]
+            } else {                
+                choices.push(row)
+            }
+            nowKey = row.key
+        };
+        choice = choices[choices.length-1]
+        listPic(choice)
+    })
 }
+
+function listPic(row) {
+    var newImg = $("<img></img>")
+                 .addClass('thumbnail')
+                 // .error(function() {
+                 //   $(this).hide();
+                 // });
+    if (row.value == 'original.jpg') {
+        // we are only original
+        newImg.attr({
+                src: '/'+mydb+'/'+row.id+'/original.jpg'
+               });
+    } else {
+        // we are thumbnail
+        newImg.attr({
+                id : row.key,
+                src: '/'+mydb+'/'+row.id+'/thumbnail.jpg'
+               });
+    }
+    newImg.click(onImageClick);
+    $('#pictures').prepend(newImg);
+}
+
 
 function sendComment() {
     var commentDoc = {
@@ -177,33 +173,34 @@ function onImageClick() {
   
   function showBigPhoto() {
       console.log("showBigPhoto")
-      $('#photoview-image').attr('src', '/photoshare/'+selectedPictureId+'/original.jpg')
+      $('#photoview-image').attr('src', '/'+mydb+'/'+selectedPictureId+'/original.jpg')
   }
   
   // switch to the hi res if we have it
-  $.ajax({
-   type: 'GET',
-   url:'/photoshare/'+selectedPictureId,
-   dataType: 'json',
-   contentType: 'application/json',
-   success: showBigPhoto,
-   error: function() {
-       // trigger replication, on success, update photo
-       console.log("no big photo")
-       $.ajax({
-         type: 'POST',
-         url: '/_replicate',
-         data: JSON.stringify({
-             source : "http://couchbase.ic.ht/photoshare",
-             target : "photoshare",
-             doc_ids : [""+selectedPictureId]
-         }),
-         dataType: 'json',
-         contentType: 'application/json',
-         success: showBigPhoto
-       });       
-   }
-   });
+  function testBigPhoto(go) {
+      $.ajax({
+       type: 'GET',
+       url:'/'+mydb+'/'+selectedPictureId,
+       dataType: 'json',
+       contentType: 'application/json',
+       success: showBigPhoto,
+       error: function() {
+           // trigger replication, on success, update photo
+           console.log("no big photo")
+           myChannels.pullDocs(mydb, [""+selectedPictureId], function(err, ok) {
+               if (err)  {
+                   console.log(err);
+               } else {
+                   if (go) testBigPhoto(go - 1)
+               }
+           });    
+       }
+       });
+  }
+  if (selectedPictureId)
+    testBigPhoto(1)
+  
+
    
   var renderComments = function(response) {
     // console.log(JSON.stringify(response));
@@ -221,7 +218,7 @@ function onImageClick() {
   }
   $.ajax({
    type: 'GET',
-   url: '/photoshare/_design/photoshare/_view/comments?startkey=["'+selectedPictureId+'"]&endkey=["'+selectedPictureId+'",{}]',
+   url: '/'+mydb+'/_design/photoshare/_view/comments?startkey=["'+selectedPictureId+'"]&endkey=["'+selectedPictureId+'",{}]',
    dataType: 'json',
    contentType: 'application/json',
    success: renderComments,
@@ -245,10 +242,12 @@ function startCamera() {
 
 
 function start() {
+    // document.addEventListener("deviceready", startCamera, true);
     connectChanges(mydb, listPictures);
     // setup listing of pictures and auto refresh
     // setupSync();
-    startControl()
+    // startControl()
+    setTimeout(startControl, 1000)
 }
 
 var started = false;
@@ -258,7 +257,6 @@ function startApp() {
     start();
 };
 
-document.addEventListener("deviceready", startCamera, true);
 $('body').ready(startApp);
 
 var myChannels;

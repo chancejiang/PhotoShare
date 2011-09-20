@@ -50,7 +50,7 @@ Registration.prototype.setupControl = function(config){
         var device_code = doc.device_code;
         // load the device doc with confirm_code == code
         // TODO use a real view
-        coux([cloudControl, "_all_docs", {include_docs : true}], errLog(function(err, view) {
+        coux([cloudControl, "_all_docs", {include_docs : true}], e(function(err, view) {
             var deviceDoc;
             view.rows.forEach(function(row) {
                if (row.doc.confirm_code && row.doc.confirm_code == confirm_code &&
@@ -63,12 +63,12 @@ Registration.prototype.setupControl = function(config){
                 deviceDoc.state = "confirmed";
                 coux.put([cloudControl, deviceDoc._id], deviceDoc, function(err, ok) {
                     doc.state = "used";
-                    coux.put([cloudControl, doc._id], doc, errLog);
+                    coux.put([cloudControl, doc._id], doc, e());
                 });
             } else {
                 doc.state = "error";
                 doc.error = "no matching device";
-                coux.put([cloudControl, doc._id], doc, errLog);
+                coux.put([cloudControl, doc._id], doc, e());
             }
         }));
     });
@@ -100,19 +100,15 @@ Registration.prototype.setupControl = function(config){
     });
 
 
-    control.unsafe("device", "new", function(doc) {
-      var confirm_code = Math.random().toString().split('.').pop(); // todo better entropy
-      var link = cloudControl + "/_design/channels/verify.html#" + confirm_code;
-      sendEmail(self, doc.owner, confirm_code, function(err) {
-        if (err) {
-          errLog(err)
-        } else {
-          doc.state = "confirming";
-          doc.confirm_code = confirm_code;
-          coux.put([cloudControl, doc._id], doc, errLog);          
-        }
-      });
-    });
+    control.unsafe("device", "new", e(function(doc) {
+        var confirm_code = Math.random().toString().split('.').pop(); // todo better entropy
+        var link = cloudControl + "/_design/channels/verify.html#" + confirm_code;
+        sendEmail(self, doc.owner, confirm_code, e(function(err) {
+            doc.state = "confirming";
+            doc.confirm_code = confirm_code;
+            coux.put([cloudControl, doc._id], doc, e());          
+        }));
+    }));
     
     return control;
 }

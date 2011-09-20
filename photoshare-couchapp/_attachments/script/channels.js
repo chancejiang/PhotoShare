@@ -422,6 +422,21 @@ var Channels = function(opts) {
                 }, 100);
             }
         },
+        pullDocs : function(local_db, docids, cb) {
+            exports.localizedChannels(function(err, lchans) {
+                var channelSyncpoint;
+                lchans.forEach(function(ch) {
+                    if (ch.local_db == local_db) {
+                        channelSyncpoint = ch.syncpoint;
+                    }
+                })
+                coux({type : "POST", uri : "/_replicate"}, {
+                    target : local_db,
+                    doc_ids : docids,
+                    source : channelSyncpoint
+                }, cb);
+            });
+        },
         createChannel : function(name, cb) {
             coux.post([deviceControl], {
                 owner : owner,

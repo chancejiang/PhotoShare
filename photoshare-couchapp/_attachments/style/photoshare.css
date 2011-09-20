@@ -24,9 +24,9 @@ button {
 }
 
 .thumbnail {
-  width: "60px";
-  float: "left";
-  padding: "2px";
+  width: 60px;
+  float: left;
+  padding: 2px;
 }
 
 #comment-form {
