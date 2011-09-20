@@ -7,7 +7,9 @@ var Hook = require('hook.io').Hook
     , util = require('util')
     , docstate = require("docstate")
     , coux = require("coux").coux
-    , errLog = require("errlog").errLog
+    , errLog = require("errlog")
+    , e = errLog.e
+    , o = errLog.o
     ;
 
 var Registration = exports.Registration = function(options){
@@ -34,7 +36,12 @@ util.inherits(Registration, Hook);
 
 Registration.prototype.setupControl = function(config){
     var cloudControl = config['cloud-control']
-        , cloudDesign = config['cloud-design'];
+        , cloudDesign = config['cloud-design']
+        , d = cloudControl.split('/')
+        , serverUrl;
+    d.pop();
+    serverUrl = d.join('/');
+            
     var self = this;  
     var control = docstate.control(cloudControl)
     
@@ -66,34 +73,32 @@ Registration.prototype.setupControl = function(config){
         }));
     });
 
-    control.safe("device", "confirmed", function(deviceDoc) {
-        // now we need to ensure the user exists and make sure the device has a delegate on it
-        // move device_creds to user document, now the device can use them to auth as the user
-        
-        var d = cloudControl.split('/');
-        d.pop();
-        var serverUrl = d.join('/');
-        
+    control.safe("device", "confirmed", function(deviceDoc) {   
+        // ensure the user exists and make sure the device has a delegate on it
+        // move device_creds to user document, so the device can use them to auth as the user
         ensureUserDoc(serverUrl, deviceDoc.owner, function(err, userDoc) {
-            console.log('userDoc before', userDoc)
-            userDoc = applyOAuth(userDoc, deviceDoc._id, deviceDoc.oauth_creds);
-            console.log('userDoc', userDoc)
-            coux.put([serverUrl, "_users", userDoc._id], userDoc, function(err) {
-              if (err) {
-                  console.log("rrr", err.stack)
-                errLog(err, deviceDoc.owner)
-              } else {
-                  // set the config that we need with oauth user doc capability
-                  setOAuthConfig(userDoc, deviceDoc._id, deviceDoc.oauth_creds, serverUrl, function(err) {
-                    if (!err) {
-                        deviceDoc.state = "active";
-                        coux.put([cloudControl, deviceDoc._id], deviceDoc, errLog);          
-                    }
-                });
-              }
-            })
+            console.log("ensuredUserDoc")
+            userDoc = applyOAuth(userDoc, deviceDoc, serverUrl, o(function(err, userDoc) {
+                if (err && err.error != 'modification_not_allowed') { // iris couch oauth workaround
+                    deviceDoc.state = "error";
+                    deviceDoc.error = err;
+                    coux.put([cloudControl, deviceDoc._id], deviceDoc, e());
+                } else {
+                    if (userDoc) {
+                        coux.put([serverUrl, "_users", userDoc._id], userDoc, e(function(err) {
+                            deviceDoc.state = "active";
+                            coux.put([cloudControl, deviceDoc._id], deviceDoc, e());
+                        }))                    
+                    } else {
+                        console.log("activateDeviceDoc")
+                        deviceDoc.state = "active"; // security if it allows trival reuse of discarded deviceDocs to access accounts...?
+                        coux.put([cloudControl, deviceDoc._id], deviceDoc, e());
+                    } // else we are done, applyOAuth had no work to do
+                }
+            }));
         });
     });
+
 
     control.unsafe("device", "new", function(doc) {
       var confirm_code = Math.random().toString().split('.').pop(); // todo better entropy
@@ -130,7 +135,6 @@ function sendEmail(hook, address, link, cb) {
 function ensureUserDoc(serverUrl, name, fun) {
     var user_doc_id = "org.couchdb.user:"+name;
     coux([serverUrl, "_users", user_doc_id], function(err, userDoc) {
-        // console.log(err, userDoc)
         if (err && err.error == 'not_found') {
             fun(false, {
                 _id : user_doc_id,
@@ -139,13 +143,49 @@ function ensureUserDoc(serverUrl, name, fun) {
                 roles : []
             });
         } else if (err) {
-            console.log("ensureUserDoc Err".red, err)
+            console.log("ensureUserDoc Err", err.stack)
         } else {
             fun(false, userDoc);
         }
     });
 }
 
+function applyOAuth(u, deviceDoc, serverUrl, cb) {   
+     
+    var userDoc = u;
+    var creds = deviceDoc.oauth_creds, id = deviceDoc._id;
+    if (!userDoc) {
+        userDoc = {};
+    }
+    if (!userDoc.oauth) {
+        userDoc.oauth = {
+            consumer_keys : {},
+            tokens : {}
+        };        
+    }
+    if (!userDoc.oauth['devices']) {
+        userDoc.oauth['devices'] =  {};
+    }
+    if (userDoc.oauth.consumer_keys[creds.consumer_key] || userDoc.oauth.tokens[creds.token]) {
+        if (userDoc.oauth.consumer_keys[creds.consumer_key] == creds.consumer_secret &&
+            userDoc.oauth.tokens[creds.token] == creds.token_secret &&
+            userDoc.oauth.devices[id][0] == creds.consumer_key &&
+            userDoc.oauth.devices[id][1] == creds.token) {
+                // no op, no problem
+                cb(false)
+        } else {
+            cb({error : "token_used", message : "device_id "+id})            
+        }
+    }
+    userDoc.oauth.devices[id] = [creds.consumer_key, creds.token];
+    userDoc.oauth.consumer_keys[creds.consumer_key] = creds.consumer_secret;
+    userDoc.oauth.tokens[creds.token] = creds.token_secret;
+    // set the config that we need with oauth user doc capability
+    setOAuthConfig(userDoc, id, creds, serverUrl, cb);
+};
+
+// assuming we are still running on a version of couch that doesn't have 
+// https://issues.apache.org/jira/browse/COUCHDB-1238 fixed
 function setOAuthConfig(userDoc, id, creds, serverUrl, cb) {
     var rc = 0, ops = [
         ["oauth_consumer_secrets", creds.consumer_key, creds.consumer_secret],
@@ -166,34 +206,3 @@ function setOAuthConfig(userDoc, id, creds, serverUrl, cb) {
         });
     };
 }
-
-
-function applyOAuth(u, id, creds) {
-    var userDoc = u;
-    if (!userDoc) {
-        userDoc = {};
-    }
-    if (!userDoc.oauth) {
-        userDoc.oauth = {
-            consumer_keys : {},
-            tokens : {}
-        };        
-    }
-    if (!userDoc.oauth['devices']) {
-        userDoc.oauth['devices'] =  {};
-    }
-    if (userDoc.oauth.consumer_keys[creds.consumer_key] || userDoc.oauth.tokens[creds.token]) {
-        if (userDoc.oauth.consumer_keys[creds.consumer_key] == creds.consumer_secret &&
-            userDoc.oauth.tokens[creds.token] == creds.token_secret &&
-            userDoc.oauth.devices[id][0] == creds.consumer_key &&
-            userDoc.oauth.devices[id][1] == creds.token) {
-                // no op, no problem
-        } else {
-            throw({error : "token_used", message : "device_id "+id})            
-        }
-    }
-    userDoc.oauth.devices[id] = [creds.consumer_key, creds.token];
-    userDoc.oauth.consumer_keys[creds.consumer_key] = creds.consumer_secret;
-    userDoc.oauth.tokens[creds.token] = creds.token_secret;
-    return userDoc;
-};

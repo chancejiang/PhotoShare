@@ -93,7 +93,7 @@ var SyncPoint = exports.SyncPoint = function(options){
         }
 
         // /dev/null email handler
-        self.on('sendEmail',function() {
+        self.on('*::sendEmail',function() {
             console.log('sendEmail', arguments)
         });
     });

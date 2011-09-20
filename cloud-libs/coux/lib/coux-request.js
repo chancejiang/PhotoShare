@@ -42,8 +42,9 @@ var coux = exports.coux = function(opts, body) {
             req[x] = opts[x];
         }
     }
-    console.log(req.method, req.url);
+    console.log('coux', req.method, req.url);
     request(req, function(err, resp, body) {
+        console.log('done', req.method, req.url);
         if (err) {
             cb(err, resp, body)
         } else if (resp.statusCode >= 400) {

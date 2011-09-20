@@ -25,6 +25,9 @@ var Channels = function(opts) {
     
     setupControl();
     // entry point for device registration and sync / backup config
+    coux.put('/_config/log/level','info', function() {})
+    function setupControl2() {};
+    
     function setupControl() {
         console.log("setupControl")
         coux({type : "PUT", uri : [deviceControl]}, function() {
@@ -112,7 +115,7 @@ var Channels = function(opts) {
         console.log("haveDeviceDoc", deviceDoc)
         owner = deviceDoc.owner;
         
-        if (deviceDoc.state == "confirmed") {
+        if (deviceDoc.state == "active") {
             console.log("deviceDoc active")
             syncControlDB(deviceDoc, e(function() {
                 opts.connected(false, deviceDoc);
@@ -120,12 +123,11 @@ var Channels = function(opts) {
             normalizeSubscriptions();
         } else {
             pushDeviceDoc();
+            // should just send the code...
             opts.waitForContinue(deviceDoc, e(function(err, closeContinue) {
                 syncControlDB(deviceDoc, e(function(err, resp) {
-                    if (!err) {
-                        closeContinue();
-                        opts.connected(false, deviceDoc);
-                    }
+                    closeContinue();
+                    opts.connected(false, deviceDoc);
                 }));
                 normalizeSubscriptions();
             }));

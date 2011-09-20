@@ -35,8 +35,12 @@ li span, li a {
   background:#fcc;
 }
 
+.confirming {
+  background:#9da;
+}
+
 .confirmed {
-  background:#dfd;
+  background:#def;
 }
 
 .ready {

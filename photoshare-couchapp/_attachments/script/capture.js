@@ -301,7 +301,7 @@ function waitForContinue(doc, cb) {
 function setupEmailForm(cb) {
     $("#register").show().find("form").submit(function(ev) {
         ev.preventDefault();
-        var email = $(this).find("input").val();
+        var email = $(this).find("input").val().replace(new RegExp('\^[\\s]+|[\\s]+$', 'g'), '');
         cb(false, email, e(function() {
             $("#register").hide();
         }));
@@ -330,7 +330,7 @@ function connected(err, doc) {
             e.preventDefault();
             var name = $(this).find('input[type=text]').val();
             myChannels.createChannel(name, function(err, ok) {
-                
+                $("#new_channel").hide();
             });
         });
         

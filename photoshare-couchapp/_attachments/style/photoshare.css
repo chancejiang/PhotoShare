@@ -3,7 +3,8 @@
 }
 button {
   height: 42px;
-  padding: 0 8px;
+  padding: 0 12px;
+  margin:12px;
   color: #151b24;
   line-height: 42px;
   text-shadow: #fff 0px 1px 1px;
@@ -19,7 +20,7 @@ button {
   position: absolute;
   margin-left: auto;
   margin-right: auto;
-  top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,1);
+  top:0;left:0;right:0;bottom:auto;background:rgba(255,255,255,1);
 }
 
 .thumbnail {
