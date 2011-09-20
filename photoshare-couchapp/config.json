@@ -1,5 +1,5 @@
 {
     "device-design" : "photoshare-design",
     "device-control" : "photoshare-control-device",
-    "cloud-control" : "http//photoshare.ic.ht/photoshare-control-cloud" 
+    "cloud-control" : "http://photoshare.ic.ht/photoshare-control-cloud" 
 }

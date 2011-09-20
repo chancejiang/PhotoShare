@@ -109,25 +109,25 @@ var Channels = function(opts) {
     // why is this one turning into a controller?
     var owner;
     function haveDeviceDoc(deviceDoc) {
-        console.log("haveDeviceDoc")
+        console.log("haveDeviceDoc", deviceDoc)
         owner = deviceDoc.owner;
         
-        if (deviceDoc.state == "active") {
+        if (deviceDoc.state == "confirmed") {
             console.log("deviceDoc active")
-            normalizeSubscriptions();
             syncControlDB(deviceDoc, e(function() {
                 opts.connected(false, deviceDoc);
             }));
+            normalizeSubscriptions();
         } else {
             pushDeviceDoc();
             opts.waitForContinue(deviceDoc, e(function(err, closeContinue) {
-                normalizeSubscriptions();
                 syncControlDB(deviceDoc, e(function(err, resp) {
                     if (!err) {
                         closeContinue();
                         opts.connected(false, deviceDoc);
                     }
                 }));
+                normalizeSubscriptions();
             }));
         }
     };
@@ -226,9 +226,13 @@ var Channels = function(opts) {
                         }
                     }
                 });
-                rep_defs = rep_defs.reduce(function(prev, curr){  
-                  return prev.concat(curr);  
-                }).filter(function(r) {return r});
+                if (rep_defs.length == 1) {
+                    rep_defs = rep_defs[0];
+                } else {
+                    rep_defs = rep_defs.filter(function(r) {return r}).reduce(function(prev, curr){  
+                      return prev.concat(curr);
+                    });
+                }
                 function makeReps(rep_defs) {
                     var repd;
                     if (repd = rep_defs.pop()) {
@@ -242,7 +246,9 @@ var Channels = function(opts) {
                         cb(chan_w_local_links)
                     }
                 }
-                makeReps(rep_defs)
+                if (rep_defs && rep_defs.length > 0) {
+                    makeReps(rep_defs)
+                }
             }));
         }));
     }
@@ -354,7 +360,7 @@ var Channels = function(opts) {
                 var db, needs_rep = [];
                 console.log('needs_rep?',dbs)
                 dbs.forEach(function(db) {
-                    if (db !== deviceControl && db.indexOf("_") !== 0 && local_rep_dbs.indexOf(db) == -1) {
+                    if ([deviceControl, deviceDesign].indexOf(db) == -1 && db.indexOf("_") !== 0 && local_rep_dbs.indexOf(db) == -1) {
                         needs_rep.push(db)
                     }                    
                 });

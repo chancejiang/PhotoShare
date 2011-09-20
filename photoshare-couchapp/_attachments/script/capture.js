@@ -317,7 +317,7 @@ function connected(err, doc) {
             var li = $('<li><a class="device"></a> by <span></span> (<a class="cloud">cloud</a>)</li>');
             pparts[1] = encodeURIComponent(c.local_db);
             li.find('.device').text(c.name).attr({href:pparts.join('/')});                
-            li.find('.cloud').attr({href:[c.syncpoint, pparts[2], pparts[3], pparts[4]].join('/')});
+            li.find('.cloud').attr({href:c.syncpoint});
             li.find('span').text(c.owner);
             $('#status ul').append(li);
         });

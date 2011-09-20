@@ -6,6 +6,7 @@ function coux(opts, body) {
     }
     var cb = arguments[arguments.length -1];
     if (arguments.length == 3) {
+        console.log(body)
         opts.data = JSON.stringify(body);
     }
     opts.url = opts.url || opts.uri;

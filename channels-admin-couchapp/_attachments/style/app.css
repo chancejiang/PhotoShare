@@ -24,7 +24,7 @@ li span, li a {
 }
 
 .used {
-  background:#efe;
+  background:#eee;
 }
 
 .active {
@@ -33,6 +33,14 @@ li span, li a {
 
 .error {
   background:#fcc;
+}
+
+.confirmed {
+  background:#dfd;
+}
+
+.ready {
+  background:#dde;
 }
 
 li {

@@ -139,7 +139,7 @@ function ensureUserDoc(serverUrl, name, fun) {
                 roles : []
             });
         } else if (err) {
-            console.log("Err".red, err)
+            console.log("ensureUserDoc Err".red, err)
         } else {
             fun(false, userDoc);
         }
@@ -183,7 +183,14 @@ function applyOAuth(u, id, creds) {
         userDoc.oauth['devices'] =  {};
     }
     if (userDoc.oauth.consumer_keys[creds.consumer_key] || userDoc.oauth.tokens[creds.token]) {
-        throw({error : "token_used", message : "device_id "+id})
+        if (userDoc.oauth.consumer_keys[creds.consumer_key] == creds.consumer_secret &&
+            userDoc.oauth.tokens[creds.token] == creds.token_secret &&
+            userDoc.oauth.devices[id][0] == creds.consumer_key &&
+            userDoc.oauth.devices[id][1] == creds.token) {
+                // no op, no problem
+        } else {
+            throw({error : "token_used", message : "device_id "+id})            
+        }
     }
     userDoc.oauth.devices[id] = [creds.consumer_key, creds.token];
     userDoc.oauth.consumer_keys[creds.consumer_key] = creds.consumer_secret;
