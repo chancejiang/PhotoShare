@@ -61,10 +61,10 @@ Registration.prototype.setupControl = function(config){
             });
             if (deviceDoc) {
                 deviceDoc.state = "confirmed";
-                coux.put([cloudControl, deviceDoc._id], deviceDoc, function(err, ok) {
+                coux.put([cloudControl, deviceDoc._id], deviceDoc, e(function(err, ok) {
                     doc.state = "used";
                     coux.put([cloudControl, doc._id], doc, e());
-                });
+                }));
             } else {
                 doc.state = "error";
                 doc.error = "no matching device";
@@ -100,15 +100,15 @@ Registration.prototype.setupControl = function(config){
     });
 
 
-    control.unsafe("device", "new", e(function(doc) {
+    control.unsafe("device", "new", function(doc) {
         var confirm_code = Math.random().toString().split('.').pop(); // todo better entropy
         var link = cloudControl + "/_design/channels/verify.html#" + confirm_code;
-        sendEmail(self, doc.owner, confirm_code, e(function(err) {
+        sendEmail(self, doc.owner, confirm_code, e(function() {
             doc.state = "confirming";
             doc.confirm_code = confirm_code;
             coux.put([cloudControl, doc._id], doc, e());          
         }));
-    }));
+    });
     
     return control;
 }

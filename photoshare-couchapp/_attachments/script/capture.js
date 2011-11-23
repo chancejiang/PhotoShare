@@ -122,6 +122,7 @@ function listPictures() {
 }
 
 function listPic(row) {
+    if (!row) {return;}
     var newImg = $("<img></img>")
                  .addClass('thumbnail')
                  // .error(function() {

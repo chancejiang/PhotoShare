@@ -1,4 +1,5 @@
 {
-    "cloud-design" : "http://photoshare.ic.ht/photoshare-design",
-    "cloud-control" : "http://photoshare_admin:jpypdjstr@photoshare.ic.ht/photoshare-control-cloud" 
+    "cloud-design" : "http://172.20.10.3:5984/photoshare-design",
+    "x-iris-cloud-control" : "http://photoshare_admin:jpypdjstr@photoshare.ic.ht/photoshare-control-cloud",
+    "cloud-control" : "http://jchrisa:jchrisa@172.20.10.3:5984/photoshare-control-cloud"
 }
