@@ -1,2 +1,9 @@
 ## Pairing
 
+## Config
+
+Syncpoint URL
+
+
+
+

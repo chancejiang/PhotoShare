@@ -1,34 +1,36 @@
 // binds to the control database, runs document logic
 // needed config
 
-var cloudControl = 'http://localhost:5984/control',
-    coux = require('coux').coux,
-    e = require('errLog').e
-    
+var coux = require('coux').coux,
+    e = require('errLog').e,
+    config;
 
-exports.bind = function(control) {
-   control.safe("confirm","clicked", confirmClicked);
-   control.safe("device", "confirmed", deviceConfirmed);
-   // sends an email, not safe to run twice
-   control.unsafe("device", "new", deviceNew);
+exports.bind = function(control, conf) {
+    config = conf;
+    control.safe("confirm","clicked", confirmClicked);
+    control.safe("device", "confirmed", deviceConfirmed);
+    // sends an email, not safe to run twice
+    control.unsafe("device", "new", deviceNew);
 };
 
 function deviceNew(doc) {
     var confirm_code = Math.random().toString().split('.').pop(); // todo better entropy
-    var link = cloudControl + "/_design/channels/verify.html#" + confirm_code;
-    sendEmail(doc.owner, confirm_code, e(function() {
+    var link = config.control + "/_design/channels/verify.html#" + confirm_code;
+    sendEmail(doc.owner, link, e(function() {
         doc.state = "confirming";
+        doc.link = link;
         doc.confirm_code = confirm_code;
-        coux.put([cloudControl, doc._id], doc, e());          
+        coux.put([config.control, doc._id], doc, e());          
     }));
 }
 
 function confirmClicked(doc) {
+    console.log("confirmClicked")
     var confirm_code = doc.confirm_code;
     var device_code = doc.device_code;
     // load the device doc with confirm_code == code
     // TODO use a real view
-    coux([cloudControl, "_all_docs", {include_docs : true}], e(function(err, view) {
+    coux([config.control, "_all_docs", {include_docs : true}], e(function(err, view) {
         var deviceDoc;
         view.rows.forEach(function(row) {
            if (row.doc.confirm_code && row.doc.confirm_code == confirm_code &&
@@ -39,14 +41,14 @@ function confirmClicked(doc) {
         });
         if (deviceDoc) {
             deviceDoc.state = "confirmed";
-            coux.put([cloudControl, deviceDoc._id], deviceDoc, e(function(err, ok) {
+            coux.put([config.control, deviceDoc._id], deviceDoc, e(function(err, ok) {
                 doc.state = "used";
-                coux.put([cloudControl, doc._id], doc, e());
+                coux.put([config.control, doc._id], doc, e());
             }));
         } else {
             doc.state = "error";
             doc.error = "no matching device";
-            coux.put([cloudControl, doc._id], doc, e());
+            coux.put([config.control, doc._id], doc, e());
         }
     }));
 }

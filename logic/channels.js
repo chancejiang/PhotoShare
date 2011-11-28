@@ -47,9 +47,7 @@ function newChannel(doc) {
                             }))
                         }));
                     }
-                        
                 });
-
             }
         });
     }

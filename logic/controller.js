@@ -17,11 +17,11 @@ function subscribeDb(db, fun) {
     getChanges(0);
 };
 
-exports.start = function(db) {
+exports.start = function(config) {
     var control = docstate.control();
-    pairDevice.bind(control);
+    pairDevice.bind(control, config);
     control.start();
-    subscribeDb(db,function(change) {
+    subscribeDb(config.control,function(change) {
         control.handle(change.doc)
     });
 };

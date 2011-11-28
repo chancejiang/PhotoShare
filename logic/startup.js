@@ -2,7 +2,6 @@
 // run with
 // node startup.js
 var controller = require('./controller'),
-    db = 'http://localhost:5984/control',
     welcome = '\n\
 \n\
        ______                  __    __                  \n\
@@ -29,4 +28,4 @@ if (welcome.rainbow) {
     console.log(welcome);
 }
 
-controller.start(db)
+controller.start({control:'http://localhost:5984/control'})
