@@ -1,6 +1,6 @@
 var stately = require("stately");
 
-exports.control = function(url) {
+exports.control = function() {
     var safeMachine, safeStates = {}
         , cautiousMachine, unsafeStates = {}
         ;

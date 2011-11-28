@@ -1,4 +1,10 @@
 // binds to the control database, runs document logic
+// needed config
+
+var cloudControl = 'http://localhost:5984/control',
+    coux = require('coux').coux,
+    e = require('errLog').e
+    
 
 exports.bind = function(control) {
    control.safe("confirm","clicked", confirmClicked);
@@ -6,6 +12,16 @@ exports.bind = function(control) {
    // sends an email, not safe to run twice
    control.unsafe("device", "new", deviceNew);
 };
+
+function deviceNew(doc) {
+    var confirm_code = Math.random().toString().split('.').pop(); // todo better entropy
+    var link = cloudControl + "/_design/channels/verify.html#" + confirm_code;
+    sendEmail(doc.owner, confirm_code, e(function() {
+        doc.state = "confirming";
+        doc.confirm_code = confirm_code;
+        coux.put([cloudControl, doc._id], doc, e());          
+    }));
+}
 
 function confirmClicked(doc) {
     var confirm_code = doc.confirm_code;
@@ -65,7 +81,7 @@ function deviceConfirmed(deviceDoc) {
 
 
 
-function sendEmail(hook, address, link, cb) {
+function sendEmail(address, link, cb) {
     var email = {
         to : address,
         from : "jchris@couchbase.com",
@@ -73,7 +89,7 @@ function sendEmail(hook, address, link, cb) {
         body : 'To sync your phone with the sharing server, click this link:\n\n' 
         + link
     };
-    hook.emit("sendEmail", email)
+    console.log("sendEmail", email)
 // how do we get an ack that that email was delivered?
     cb(false);
 }

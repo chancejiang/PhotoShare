@@ -1,0 +1,27 @@
+var pairDevice = require('./pairDevice'),
+    coux = require('coux').coux,
+    docstate = require("docstate"),
+    e = require('errLog').e;
+
+// connect to changes feed
+function subscribeDb(db, fun) {
+    function getChanges(since) {
+        coux({url:db + 
+            "/_changes?include_docs=true&feed=longpoll&since="
+            + since, agent:false}, 
+        e(function(err, changes) {
+            changes.results.forEach(fun)
+            getChanges(changes.last_seq);
+        }))
+    }
+    getChanges(0);
+};
+
+exports.start = function(db) {
+    var control = docstate.control();
+    pairDevice.bind(control);
+    control.start();
+    subscribeDb(db,function(change) {
+        control.handle(change.doc)
+    });
+};
