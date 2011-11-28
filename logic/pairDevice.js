@@ -39,7 +39,7 @@ function confirmClicked(doc) {
                deviceDoc = row.doc;
            }
         });
-        if (deviceDoc) {
+        if (deviceDoc && deviceDoc.state == "confirming") {
             deviceDoc.state = "confirmed";
             coux.put([config.control, deviceDoc._id], deviceDoc, e(function(err, ok) {
                 doc.state = "used";
@@ -54,26 +54,27 @@ function confirmClicked(doc) {
 }
 
 
-function deviceConfirmed(deviceDoc) {   
+function deviceConfirmed(deviceDoc) {
+    var serverUrl = config.server;
        // ensure the user exists and make sure the device has a delegate on it
        // move device_creds to user document, so the device can use them to auth as the user
        ensureUserDoc(serverUrl, deviceDoc.owner, function(err, userDoc) {
            console.log("ensuredUserDoc")
-           userDoc = applyOAuth(userDoc, deviceDoc, serverUrl, o(function(err, userDoc) {
+           userDoc = applyOAuth(userDoc, deviceDoc, serverUrl, e(function(err, userDoc) {
                if (err && err.error != 'modification_not_allowed') { // iris couch oauth workaround
                    deviceDoc.state = "error";
                    deviceDoc.error = err;
-                   coux.put([cloudControl, deviceDoc._id], deviceDoc, e());
+                   coux.put([config.control, deviceDoc._id], deviceDoc, e());
                } else {
                    if (userDoc) {
                        coux.put([serverUrl, "_users", userDoc._id], userDoc, e(function(err) {
                            deviceDoc.state = "active";
-                           coux.put([cloudControl, deviceDoc._id], deviceDoc, e());
+                           coux.put([config.control, deviceDoc._id], deviceDoc, e());
                        }))                    
                    } else {
                        console.log("activateDeviceDoc")
                        deviceDoc.state = "active"; // security if it allows trival reuse of discarded deviceDocs to access accounts...?
-                       coux.put([cloudControl, deviceDoc._id], deviceDoc, e());
+                       coux.put([config.control, deviceDoc._id], deviceDoc, e());
                    } // else we are done, applyOAuth had no work to do
                }
            }));

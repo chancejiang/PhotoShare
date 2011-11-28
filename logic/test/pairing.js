@@ -16,7 +16,7 @@ var db = "http://localhost:5984/test-control";
 coux.del(db, function() {
     coux.put(db, e(function() {
         // launch the controller engine
-        controller.start({control:db});
+        controller.start({control:db, server : "http://localhost:5984"});
         console.log("started controller")
         
         // save doc for new device
@@ -37,15 +37,21 @@ coux.del(db, function() {
             coux.post({url:db+"/_changes?filter=_doc_ids&since=1&include_docs=true&feed=longpoll", agent:false}, {"doc_ids": [ok.id]}, e(function(err, resp) {
                 var doc = resp.results[0].doc;
                 assert.equal(doc.state, "confirming")
-                console.log("confirming device", doc)
+                console.log("confirming device")
                 // create a doc like we clicked confirm
                 coux.post(db, {
                     type : "confirm",
                     state : "clicked",
                     device_code : doc.device_code, 
                     confirm_code : doc.confirm_code
-                }, e(function() {
-                    
+                }, e(function(err, ok) {
+                    console.log("confirmed device")
+                    coux.post({url:db+"/_changes?filter=_doc_ids&since=3&include_docs=true&feed=longpoll", agent:false}, {"doc_ids": [ok.id]}, e(function(err, resp) {
+                        var doc;
+                        console.log("more",doc = resp.results[0].doc)
+                        assert.equal(doc.state, "used")
+                        
+                    }));
                 }))
             }))
         }));
