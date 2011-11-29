@@ -18,7 +18,6 @@ coux.del(db, function() {
         // launch the controller engine
         controller.start({control:db, server : "http://localhost:5984"});
         console.log("started controller")
-        
         // save doc for new device
         coux.post(db, {
             // _id : device_id,
@@ -33,7 +32,7 @@ coux.del(db, function() {
               token: smallRand()
             }
         }, e(function(err, ok) {
-            console.log("created new device")
+            console.log("created new device", ok.id)
             coux.post({url:db+"/_changes?filter=_doc_ids&since=1&include_docs=true&feed=longpoll", agent:false}, {"doc_ids": [ok.id]}, e(function(err, resp) {
                 var doc = resp.results[0].doc;
                 assert.equal(doc.state, "confirming")
@@ -47,11 +46,25 @@ coux.del(db, function() {
                 }, e(function(err, ok) {
                     console.log("confirmed device")
                     coux.post({url:db+"/_changes?filter=_doc_ids&since=3&include_docs=true&feed=longpoll", agent:false}, {"doc_ids": [ok.id]}, e(function(err, resp) {
-                        var doc;
-                        console.log("more",doc = resp.results[0].doc)
-                        assert.equal(doc.state, "used")
-                        
-                    }));
+                        var conf = resp.results[0].doc;
+                        assert.equal(conf.state, "used")
+                        console.log("confirm used")
+                        coux.post({url:db+"/_changes?filter=_doc_ids&since=5&include_docs=true&feed=longpoll", agent:false}, {"doc_ids": [doc._id]}, e(function(err, resp) {
+                            var doc = resp.results[0].doc;
+                            console.log("device active")
+                            assert.equal(doc.state, "active")
+                            // check that the oauth creds work for replication...
+                                // check the users database for the document for this user
+                                var server = db.split('/');
+                                server.pop(); server = server.join('/');
+                                coux([server, '_users', "org.couchdb.user:"+doc.owner], e(function(err, info) {
+                                    console.log(info)
+                                }))
+                                // create a private database and document for the user
+                                // check to see that we can read it into a public 
+                                // database via replication as the user
+                        }));
+                    }));     
                 }))
             }))
         }));

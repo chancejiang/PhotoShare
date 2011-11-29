@@ -60,7 +60,7 @@ function deviceConfirmed(deviceDoc) {
        // move device_creds to user document, so the device can use them to auth as the user
        ensureUserDoc(serverUrl, deviceDoc.owner, function(err, userDoc) {
            console.log("ensuredUserDoc")
-           userDoc = applyOAuth(userDoc, deviceDoc, serverUrl, e(function(err, userDoc) {
+           applyOAuth(userDoc, deviceDoc, serverUrl, e(function(err, userDoc) {
                if (err && err.error != 'modification_not_allowed') { // iris couch oauth workaround
                    deviceDoc.state = "error";
                    deviceDoc.error = err;
@@ -164,7 +164,7 @@ function setOAuthConfig(userDoc, id, creds, serverUrl, cb) {
             } else {
                 rc += 1;
                 if (rc == ops.length) {
-                    cb(false)
+                    cb(false, userDoc)
                 }
             }
         });
